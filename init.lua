@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '1.6.0'
+local version = '1.6.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -93,7 +93,6 @@ local function loadBuffs()
             duration = duration,
             color = color}
         table.insert(buffs, buff)
-        --mq.pickle('alb2.lua', buffs)
     end
 end
 loadBuffs()
@@ -121,21 +120,21 @@ local function updateBuffs()
             end
         elseif sortedBy == 'name' then
             if mq.TLO.Me.Buff(v.slot)() then
-                if v.name ~= mq.TLO.Me.Buff(v.slot)() then --of course this will always be inequal because if Abracadabra is in buffs[1] but in slot 40
+                if v.name ~= mq.TLO.Me.Buff(v.slot)() then
                     v.name = mq.TLO.Me.Buff(v.slot)()
                     if mq.TLO.Me.Buff(v.slot).Duration() < 300 then
                         v.duration = 0
                     else
                         v.duration, v.color = calcDuration(v.slot)
                     end
-                    table.sort(buffs, sortSlot)
+                    table.sort(buffs, sortName)
                 end
             else
                 if v.name ~= 'zz' then
                     v.name = 'zz'
                     v.duration = 0
                     v.color = 'none'
-                    table.sort(buffs, sortSlot)
+                   table.sort(buffs, sortName)
                 end
             end
         end
@@ -224,17 +223,18 @@ local function buildWindow()
     end
     ImGui.PopStyleVar(3)
     ImGui.EndTabBar()
-    
+    ImGui.SetWindowFontScale(.8)
+    ImGui.TextColored(1,1,1,.7, ' v'..version)
+    ImGui.SetWindowFontScale(1)
 end
 
 local function ab()
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
-    ImGui.PushStyleColor(ImGuiCol.WindowBg, 0,0,0,.8)
-    Open, ShowUI = ImGui.Begin('Alphabuff '..version, Open)
+    ImGui.SetNextWindowBgAlpha(0.7)
+    Open, ShowUI = ImGui.Begin('Alphabuff', Open)
     if ShowUI then buildWindow() end
     ImGui.End()
-    ImGui.PopStyleColor()
     ImGui.PopStyleVar(2)
 end
 
