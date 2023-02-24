@@ -1,12 +1,22 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '1.6.2'
+local version = '1.7.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
 require('ImGui')
 
 local sortedBy = 'slot'
+local function sortSlot(a, b)
+    sortedBy = 'slot'
+    local delta = 0
+    delta = a.slot - b.slot
+    if delta ~= 0 then
+        return delta < 0
+    end
+    return a.slot - b.slot < 0
+end
+
 local function sortName(a, b)
     sortedBy = 'name'
     local delta = 0
@@ -23,75 +33,69 @@ local function sortName(a, b)
     return a.slot - b.slot < 0
 end
 
-local function sortSlot(a, b)
-    sortedBy = 'slot'
-    local delta = 0
-    delta = a.slot - b.slot
-    if delta ~= 0 then
-        return delta < 0
-    end
-    return a.slot - b.slot < 0
+local function buff(s)
+    local buff = mq.TLO.Me.Buff(s)
+    return buff
 end
 
-local function calcDuration(b)
-    local winner
+local function buffName(s)
+    local name = buff(s)() or 'zz'
+    return name
+end
+
+local function buffRemaining(s)
+    local remaining = buff(s).Duration() or 0
+    remaining = remaining / 1000
+    return remaining
+end
+
+local function buffDuration(s)
+    local duration = buff(s).MyDuration() or 0
+    duration = duration * 6
+    return duration
+end
+
+local function buffDenom(s) 
+    local rem = buffRemaining(s)
+    local dur = buffDuration(s)
+    return math.max(rem, dur)
+end
+
+local function barColor(s)
+    local barcolor
     local color
-    local current = mq.TLO.Me.Buff(b).Duration() or 0
-    local scurrent = mq.TLO.Me.Buff(b).MyDuration() or 0
-    current = current / 1000 --to seconds
-    scurrent = scurrent * 6 --to seconds
-    winner = math.max(current, scurrent)
-    if mq.TLO.Me.Buff(b).SpellType() == 'Detrimental' then
+    if buff(s).SpellType() == 'Detrimental' then
+        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .7, 0, 0, .7)
         color = 'red'
-    elseif scurrent == -6 or scurrent > 36000 then
+    elseif buffDuration(s) < 0 or buffDuration(s) > 36000 then
+        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 1, 1, 1, .2)
         color = 'gray'
-    elseif scurrent <= 1200 then
+    elseif buffDuration(s) > 0 and buffDuration(s) < 1200 then
+        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
         color = 'green'
+    elseif buffDuration(s) == 0 then
+        color = 'none'
     else
+        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, .6, 1, .4)
         color = 'blue'
     end
-    return winner, color
+    return barcolor, color
 end
 
-local function calcRatio(s,d,c)
-    local ratio
-    local current = mq.TLO.Me.Buff(s).Duration() or 0
-    current = current / 1000
-    if c == 'gray' then
-        ratio = 1
-    elseif c == 'green' or c == 'red' then
-        ratio = current / d
-    elseif current / 60 > 20 then
-        ratio = 1
-    else
-        ratio = (current / 60) / 20
-    end
-    return ratio
+local anim = mq.FindTextureAnimation('A_SpellIcons')
+local function buffIcon(s)
+    local icon = buff(s).SpellIcon()
+    anim:SetTextureCell(icon)
+    return ImGui.DrawTextureAnimation(anim, 17, 17)
 end
 
 local buffs = {}
 local function loadBuffs()
     for i = 1,42 do
-        local name
-        local duration --seconds
-        local color
-        if mq.TLO.Me.Buff(i)() then
-            name = mq.TLO.Me.Buff(i)()
-            if mq.TLO.Me.Buff(i).Duration() < 300 then
-                duration = 0
-            else
-                duration, color = calcDuration(i)
-            end
-        else
-            name = 'zz'
-            duration = 0
-            color = 'none'
-        end
         local buff = {
             slot = i,
-            name = name,
-            duration = duration,
-            color = color}
+            name = buffName(i),
+            denom = buffDenom(i)}
         table.insert(buffs, buff)
     end
 end
@@ -101,127 +105,113 @@ local function updateBuffs()
     for k,v in pairs(buffs) do
         if sortedBy == 'slot' then
             if mq.TLO.Me.Buff(k)() then
-                if v.name ~= mq.TLO.Me.Buff(k)() then 
-                    v.name = mq.TLO.Me.Buff(k)()
-                    if mq.TLO.Me.Buff(k).Duration() < 300 then
-                        v.duration = 0
-                    else
-                        v.duration, v.color = calcDuration(k)
-                    end
+                if v.name ~= buffName(k) then
+                    v.name = buffName(k)
+                    v.denom = buffDenom(k)
                     table.sort(buffs, sortSlot)
                 end
             else
                 if v.name ~= 'zz' then
                     v.name = 'zz'
-                    v.duration = 0
-                    v.color = 'none'
+                    v.denom = 0
                     table.sort(buffs, sortSlot)
                 end
             end
         elseif sortedBy == 'name' then
             if mq.TLO.Me.Buff(v.slot)() then
-                if v.name ~= mq.TLO.Me.Buff(v.slot)() then
-                    v.name = mq.TLO.Me.Buff(v.slot)()
-                    if mq.TLO.Me.Buff(v.slot).Duration() < 300 then
-                        v.duration = 0
-                    else
-                        v.duration, v.color = calcDuration(v.slot)
-                    end
+                if v.name ~= buffName(v.slot) then
+                    v.name = buffName(v.slot)
+                    v.denom = buffDenom(v.slot)
                     table.sort(buffs, sortName)
                 end
             else
                 if v.name ~= 'zz' then
                     v.name = 'zz'
-                    v.duration = 0
-                    v.color = 'none'
-                   table.sort(buffs, sortName)
+                    v.denom = 0
+                    table.sort(buffs, sortName)
                 end
             end
         end
     end
 end
 
+local function calcRatio(s, d)
+    local _, buff = barColor(s)
+    local ratio
+    if buff == 'gray' then
+        ratio = 1
+    elseif buff == 'green' or buff == 'red' then
+        ratio = buffRemaining(s) / d
+    elseif buff == 'blue' and buffRemaining(s) / 60 >= 20 then
+        ratio = 1
+    elseif buff == 'blue' and buffRemaining(s) / 60 < 20 then
+        ratio = (buffRemaining(s) / 60) / 20
+    else
+        ratio = 0
+    end
+    return ratio
+end
+
 local Open, ShowUI = true, true
-local anim = mq.FindTextureAnimation('A_SpellIcons')
 local function buildWindow()
     ImGui.SetWindowSize(200, 900, ImGuiCond.Once)
     ImGui.SetWindowFontScale(1)
     local function drawTable(a, b)
-        if a == 1 and sortedBy == 'name' then table.sort(buffs, sortSlot)
-        elseif a ==2 and sortedBy == 'slot' then table.sort(buffs, sortName) end
-        for k,v in pairs(buffs) do
-            local buff = buffs[k]
-            if (b and buff.color == b) or not b then
-                ImGui.PushID(buff)
-                local icon
-                local function getIcon()
-                    if buff.name ~= 'zz' then
-                        anim:SetTextureCell(mq.TLO.Me.Buff(buff.slot).SpellIcon())
-                        icon = ImGui.DrawTextureAnimation(anim, 17, 17)
-                    else
-                        icon = ImGui.TextColored(1,1,1,.5,string.format("%02d", buff.slot))
-                    end
-                    return icon
-                end
-                local ratio
-                if buff.name ~= nil and buff.duration ~= nil and buff.duration ~= 0 then
-                    ratio = calcRatio(buff.slot, buff.duration, buff.color)
-                else
-                    ratio = 0
-                end
-                ImGui.BeginGroup()
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
-                getIcon()
-                ImGui.SameLine()
-                if buff.name ~= 'zz' then
-                    if buff.color == 'red' then
-                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .7, 0, 0, .7)
-                    elseif buff.color == 'green' then
-                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
-                    elseif buff.color == 'gray' then
-                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 1, 1, 1, .2)
-                    else
-                        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, .6, 1, .4)
-                    end
-                    ImGui.ProgressBar(ratio, ImGui.GetContentRegionAvail(), 16, '##'..buff.name) 
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                    ImGui.Text(buff.name)
-                    ImGui.PopStyleColor()
-                end
-                ImGui.PopStyleVar()
-                ImGui.EndGroup()
-                if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', buff.name) end
-                if ImGui.IsItemClicked(ImGuiMouseButton.Right) then mq.TLO.Me.Buff(buff.slot).Inspect() end
-                local hms
-                if color =='gray' then hms = 'Permanent' else hms = mq.TLO.Me.Buff(buff.slot).Duration.TimeHMS() or 0 end
-                if (ImGui.IsItemHovered()) and buff.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", buff.slot)..' '..buff.name..' ('..hms..')') end
+        if a == 1 and sortedBy == 'name' then
+            table.sort(buffs, sortSlot)
+        elseif a ==2 and sortedBy == 'slot' then
+            table.sort(buffs, sortName)
+        end
+        for k,_ in pairs(buffs) do
+            local item = buffs[k]
+            if (b and select(2,barColor(item.slot)) == b) or not b then
+                ImGui.PushID(item)                     
+                    ImGui.BeginGroup()
+                        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                            if item.name ~= 'zz' then
+                                buffIcon(item.slot)
+                                ImGui.SameLine()
+                                barColor(item.slot)
+                                    ImGui.ProgressBar(calcRatio(item.slot, item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
+                                    ImGui.Text(item.name)
+                                ImGui.PopStyleColor()
+                            else
+                                ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
+                            end
+                        ImGui.PopStyleVar()
+                    ImGui.EndGroup()
+                    if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                    if ImGui.IsItemClicked(ImGuiMouseButton.Right) then buff(item.slot).Inspect() end
+                    local hms
+                    if barColor(item.slot) =='gray' then hms = 'Permanent' else hms = buff(item.slot).Duration.TimeHMS() or 0 end
+                    if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
                 ImGui.PopID()
             end
         end
     end
-    
     ImGui.BeginTabBar('sortbar')
-    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 12, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
-    if ImGui.BeginTabItem('By slot') then
-        drawTable(1)
-    ImGui.EndTabItem()
-    end
-    if ImGui.BeginTabItem('By name') then
-        drawTable(2)
-    ImGui.EndTabItem()
-    end
-    if ImGui.BeginTabItem('By type') then
-        drawTable(2, 'gray')
-        drawTable(2, 'blue')
-        drawTable(2, 'green')
-        drawTable(2, 'red')
-        drawTable(2, 'none')
-    ImGui.EndTabItem()
-    end
-    ImGui.PopStyleVar(3)
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 12, 4)
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
+            if ImGui.BeginTabItem('By slot') then
+                drawTable(1)
+                ImGui.EndTabItem()
+            end
+            if ImGui.BeginTabItem('By name') then
+                drawTable(2)
+                ImGui.EndTabItem()
+            end
+            if ImGui.BeginTabItem('By type') then
+                drawTable(2, 'gray')
+                drawTable(2, 'blue')
+                drawTable(2, 'green')
+                drawTable(2, 'red')
+                drawTable(2, 'none')
+                ImGui.EndTabItem()
+            end
+        ImGui.PopStyleVar(3)
     ImGui.EndTabBar()
     ImGui.SetWindowFontScale(.8)
     ImGui.TextColored(1,1,1,.7, ' v'..version)
@@ -240,11 +230,10 @@ end
 
 mq.imgui.init('Alphabuff', ab)
 
-
 local terminate = false
 while not terminate do
     updateBuffs()
     mq.delay(250)
     if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then break end
-	if not Open then break end
+	if not Open then return end
 end
