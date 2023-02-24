@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '1.6.1'
+local version = '1.6.2'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -240,9 +240,11 @@ end
 
 mq.imgui.init('Alphabuff', ab)
 
+
 local terminate = false
 while not terminate do
     updateBuffs()
     mq.delay(250)
-	if not Open then return end
+    if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then break end
+	if not Open then break end
 end
