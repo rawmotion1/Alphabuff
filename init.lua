@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.1.0'
+local version = '2.1.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -295,7 +295,7 @@ local function drawTable(a, b, c)
                     ImGui.PopStyleVar()
                 ImGui.EndGroup()
                 if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,0).Inspect() end
+                if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,b).Inspect() end
                 local hms
                 if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
                 if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
