@@ -1,10 +1,42 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.0.0'
+local version = '2.1.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
 require('ImGui')
+
+local settings = {}
+local path = 'Alphabuff_'..mq.TLO.Me.Name()..'.lua'
+
+local function setup()
+    local configData, err = loadfile(mq.configDir..'/'..path)
+    if err then
+        settings = {
+            alphaB = 70,
+            alphaS = 70,
+            titleB = true,
+            titleS = true
+        }
+        mq.pickle(path, settings)
+        print('\at[Alphabuff]\aw Creating config file...')
+    elseif configData then
+        settings = configData()
+        print('\at[Alphabuff]\aw Loading config file...')
+    end
+end
+setup()
+
+local function saveSettings()
+    mq.pickle(path, settings)
+end
+
+local function switch(v)
+    v = not v
+    saveSettings()
+end
+
+local updated
 
 local sortedBBy = 'slot'
 local function sortBSlot(a, b)
@@ -226,66 +258,114 @@ local function calcRatio(s,t,d)
     return ratio
 end
 
+local function drawTable(a, b, c)
+    if a == 1 and b == 0 and sortedBBy == 'name' then
+        table.sort(buffs, sortBSlot)
+    elseif a ==2 and b == 0 and sortedBBy == 'slot' then
+        table.sort(buffs, sortBName)
+    elseif a ==1 and b == 1 and sortedSBy == 'name' then
+        table.sort(songs, sortSSlot)
+    elseif a ==2 and b == 1 and sortedSBy == 'slot' then
+        table.sort(songs, sortSName)
+    end
+    local spells
+    if b == 0 then 
+        spells = buffs
+    elseif b == 1 then
+        spells = songs
+    end
+    for k,_ in pairs(spells) do
+        local item = spells[k]
+        if (c and select(2,barColor(item.slot,b)) == c) or not c then
+            ImGui.PushID(item)                     
+                ImGui.BeginGroup()
+                    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                        if item.name ~= 'zz' then
+                            icon(item.slot,b)
+                            ImGui.SameLine()
+                            barColor(item.slot,b)
+                                ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
+                                ImGui.Text(item.name)
+                            ImGui.PopStyleColor()
+                        else
+                            ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
+                        end
+                    ImGui.PopStyleVar()
+                ImGui.EndGroup()
+                if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,0).Inspect() end
+                local hms
+                if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
+                if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
+            ImGui.PopID()
+        end
+    end
+end
+
+local function menu(t)
+   if ImGui.BeginPopupContextItem('Settings Menu') then
+        local update
+        ImGui.Text('Settings')
+        ImGui.Separator()
+        if t == 0 then
+            settings.titleB, update = ImGui.Checkbox('Show title bar', settings.titleB)
+            if update then switch(settings.titleB) end
+            settings.alphaB, update = ImGui.SliderInt('Alpha', settings.alphaB, 0, 100)
+            if update == true then updated = true end
+            if updated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
+                saveSettings()
+                updated = false
+            end
+        elseif t == 1 then
+            settings.titleS, update = ImGui.Checkbox('Show title bar', settings.titleS)
+            if update then switch(settings.titleS) end
+            settings.alphaS, update = ImGui.SliderInt('Alpha', settings.alphaS, 0, 100)
+            if update == true then updated = true end
+            if updated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
+                saveSettings()
+                updated = false
+            end
+        end
+    ImGui.EndPopup()
+    end
+end
+
+local function tabs(t)
+    ImGui.BeginTabBar('sortbar')
+    if ImGui.BeginTabItem('Slot') then
+        drawTable(1,t)
+        ImGui.EndTabItem()
+    end
+    if ImGui.BeginTabItem('Name') then
+        drawTable(2,t)
+        ImGui.EndTabItem()
+    end
+    if ImGui.BeginTabItem('Type') then
+        drawTable(2,t,'gray')
+        drawTable(2,t,'blue')
+        drawTable(2,t,'green')
+        drawTable(2,t,'red')
+        drawTable(2,t,'none')
+        ImGui.EndTabItem()
+    end
+    ImGui.EndTabBar()
+end
+
 local function buffWindow()
     ImGui.SetWindowSize(200, 900, ImGuiCond.Once)
     ImGui.SetWindowFontScale(1)
-    local function drawTable(a, b)
-        if a == 1 and sortedBBy == 'name' then
-            table.sort(buffs, sortBSlot)
-        elseif a ==2 and sortedBBy == 'slot' then
-            table.sort(buffs, sortBName)
-        end
-        for k,_ in pairs(buffs) do
-            local item = buffs[k]
-            if (b and select(2,barColor(item.slot,0)) == b) or not b then
-                ImGui.PushID(item)                     
-                    ImGui.BeginGroup()
-                        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
-                            if item.name ~= 'zz' then
-                                icon(item.slot,0)
-                                ImGui.SameLine()
-                                barColor(item.slot,0)
-                                    ImGui.ProgressBar(calcRatio(item.slot,0,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
-                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
-                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                                    ImGui.Text(item.name)
-                                ImGui.PopStyleColor()
-                            else
-                                ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
-                            end
-                        ImGui.PopStyleVar()
-                    ImGui.EndGroup()
-                    if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                    if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,0).Inspect() end
-                    local hms
-                    if select(2,barColor(item.slot,0)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,0).Duration.TimeHMS() or 0 end
-                    if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
-                ImGui.PopID()
-            end
-        end
-    end
-    ImGui.BeginTabBar('sortbar')
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 12, 4)
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
-            if ImGui.BeginTabItem('By slot') then
-                drawTable(1)
-                ImGui.EndTabItem()
-            end
-            if ImGui.BeginTabItem('By name') then
-                drawTable(2)
-                ImGui.EndTabItem()
-            end
-            if ImGui.BeginTabItem('By type') then
-                drawTable(2, 'gray')
-                drawTable(2, 'blue')
-                drawTable(2, 'green')
-                drawTable(2, 'red')
-                drawTable(2, 'none')
-                ImGui.EndTabItem()
-            end
-        ImGui.PopStyleVar(3)
-    ImGui.EndTabBar()
+    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
+        ImGui.Button('\xee\xa2\xb8##p')
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
+        menu(0)
+        ImGui.PopStyleVar()     
+        ImGui.SameLine()
+        tabs(0)
+    ImGui.PopStyleVar(3)
     ImGui.SetWindowFontScale(.8)
     ImGui.TextColored(1,1,1,.7, ' v'..version)
     ImGui.SetWindowFontScale(1)
@@ -294,63 +374,16 @@ end
 local function songWindow()
     ImGui.SetWindowSize(200, 660, ImGuiCond.Once)
     ImGui.SetWindowFontScale(1)
-    local function drawTable(a, b)
-        if a == 1 and sortedSBy == 'name' then
-            table.sort(songs, sortSSlot)
-        elseif a ==2 and sortedSBy == 'slot' then
-            table.sort(songs, sortSName)
-        end
-        for k,_ in pairs(songs) do
-            local item = songs[k]
-            if (b and select(2,barColor(item.slot,1)) == b) or not b then
-                ImGui.PushID(item)
-                    ImGui.BeginGroup()
-                        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
-                            if item.name ~= 'zz' then
-                                icon(item.slot,1)
-                                ImGui.SameLine()
-                                barColor(item.slot,1)
-                                    ImGui.ProgressBar(calcRatio(item.slot,1,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
-                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
-                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                                    ImGui.Text(item.name)
-                                ImGui.PopStyleColor()
-                            else
-                                ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
-                            end
-                        ImGui.PopStyleVar()
-                    ImGui.EndGroup()
-                    if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                    if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,1).Inspect() end
-                    local hms
-                    if select(2,barColor(item.slot,1)) == 'gray' then hms = 'Permanent' else hms = spell(item.slot,1).Duration.TimeHMS() or 0 end
-                    if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
-                ImGui.PopID()
-            end
-        end
-    end
-    ImGui.BeginTabBar('sortbar')
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 12, 4)
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
-            if ImGui.BeginTabItem('By slot') then
-                drawTable(1)
-                ImGui.EndTabItem()
-            end
-            if ImGui.BeginTabItem('By name') then
-                drawTable(2)
-                ImGui.EndTabItem()
-            end
-            if ImGui.BeginTabItem('By type') then
-                drawTable(2, 'gray')
-                drawTable(2, 'blue')
-                drawTable(2, 'green')
-                drawTable(2, 'red')
-                drawTable(2, 'none')
-                ImGui.EndTabItem()
-            end
-        ImGui.PopStyleVar(3)
-    ImGui.EndTabBar()
+    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
+        ImGui.Button('\xee\xa2\xb8##p')
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
+        menu(1)
+        ImGui.PopStyleVar()     
+        ImGui.SameLine()
+        tabs(1)
+    ImGui.PopStyleVar(3)
     ImGui.SetWindowFontScale(.8)
     ImGui.TextColored(1,1,1,.7, ' v'..version)
     ImGui.SetWindowFontScale(1)
@@ -358,19 +391,32 @@ end
 
 local openB, showBUI = true, true
 local openS, showSUI = true, true
+
 local function ab()
+    local buffWindowFlags
+    local songWindowFlags
+    if settings.titleB == false then
+        buffWindowFlags = bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoFocusOnAppearing)
+    else
+        buffWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
+    end
+    if settings.titleS == false then
+        songWindowFlags = bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoFocusOnAppearing)
+    else
+        songWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
+    end
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
     ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
     if openB then
-        ImGui.SetNextWindowBgAlpha(0.7)
-        openB, showBUI = ImGui.Begin('Alphabuff', openB, ImGuiWindowFlags.NoFocusOnAppearing)
+        ImGui.SetNextWindowBgAlpha(settings.alphaB/100)
+        openB, showBUI = ImGui.Begin('Alphabuff', openB, buffWindowFlags)
         if showBUI then buffWindow() end
         ImGui.End()
     end
     if openS then
-        ImGui.SetNextWindowBgAlpha(0.7)
-        openS, showSUI = ImGui.Begin('Alphasong', openS, ImGuiWindowFlags.NoFocusOnAppearing)
+        ImGui.SetNextWindowBgAlpha(settings.alphaS/100)
+        openS, showSUI = ImGui.Begin('Alphasong', openS, songWindowFlags)
         if showSUI then songWindow() end
         ImGui.End()
     end
