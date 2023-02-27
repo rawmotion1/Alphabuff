@@ -1,35 +1,52 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.1.1'
+local version = '2.2.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
 require('ImGui')
 
-local settings = {}
 local path = 'Alphabuff_'..mq.TLO.Me.Name()..'.lua'
+local settings = {}
+
+local function saveSettings()
+    mq.pickle(path, settings)
+end
+
+local function defaults(a)
+    if a == 'all' or settings.alphaB == nil then settings.alphaB = 70 end
+    if a == 'all' or settings.alphaS == nil then settings.alphaS = 70 end
+    if a == 'all' or settings.titleB == nil then settings.titleB = true end
+    if a == 'all' or settings.titleS == nil then settings.titleS = true end
+    if a == 'all' or settings.lockedB == nil then settings.lockedB = false end
+    if a == 'all' or settings.lockedS == nil then settings.lockedS = false end
+    if a == 'all' or settings.sizeBX == nil then settings.sizeBX = 176 end
+    if a == 'all' or settings.sizeBY == nil then settings.sizeBY = 890 end
+    if a == 'all' or settings.sizeSX == nil then settings.sizeSX = 176 end
+    if a == 'all' or settings.sizeSY == nil then settings.sizeSY = 650 end
+    if a == 'all' or settings.posBX == nil then settings.posBX = 236 end
+    if a == 'all' or settings.posBY == nil then settings.posBY = 60 end
+    if a == 'all' or settings.posSX == nil then settings.posSX = 60 end
+    if a == 'all' or settings.posSY == nil then settings.posSY = 60 end
+    saveSettings()
+end
 
 local function setup()
     local configData, err = loadfile(mq.configDir..'/'..path)
     if err then
-        settings = {
-            alphaB = 70,
-            alphaS = 70,
-            titleB = true,
-            titleS = true
-        }
+        defaults('all')
         mq.pickle(path, settings)
         print('\at[Alphabuff]\aw Creating config file...')
     elseif configData then
         settings = configData()
+        defaults()
         print('\at[Alphabuff]\aw Loading config file...')
     end
 end
 setup()
 
-local function saveSettings()
-    mq.pickle(path, settings)
-end
+print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
+print('\at[Alphabuff]\aw New in 2.1.2: Added a lock window feature. Also, windows should remember their location per toon. Sorry for repositioning your windows again -- that should be the last time.')
 
 local function switch(v)
     v = not v
@@ -137,6 +154,7 @@ local function barColor(s,t)
         barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
         color = 'green'
     elseif duration(s,t) == 0 then
+        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
         color = 'none'
     else
         barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, .6, 1, .4)
@@ -310,6 +328,8 @@ local function menu(t)
         ImGui.Text('Settings')
         ImGui.Separator()
         if t == 0 then
+            settings.lockedB, update = ImGui.Checkbox('Lock window', settings.lockedB)
+            if update then switch(settings.lockedB) end
             settings.titleB, update = ImGui.Checkbox('Show title bar', settings.titleB)
             if update then switch(settings.titleB) end
             settings.alphaB, update = ImGui.SliderInt('Alpha', settings.alphaB, 0, 100)
@@ -319,6 +339,8 @@ local function menu(t)
                 updated = false
             end
         elseif t == 1 then
+            settings.lockedS, update = ImGui.Checkbox('Lock window', settings.lockedS)
+            if update then switch(settings.lockedS) end
             settings.titleS, update = ImGui.Checkbox('Show title bar', settings.titleS)
             if update then switch(settings.titleS) end
             settings.alphaS, update = ImGui.SliderInt('Alpha', settings.alphaS, 0, 100)
@@ -353,8 +375,23 @@ local function tabs(t)
     ImGui.EndTabBar()
 end
 
+local onloadB = true
 local function buffWindow()
-    ImGui.SetWindowSize(200, 900, ImGuiCond.Once)
+    if onloadB == true then
+        ImGui.SetWindowSize(settings.sizeBX, settings.sizeBY)
+        ImGui.SetWindowPos(settings.posBX, settings.posBY)
+        onloadB = false
+    end
+
+    if settings.sizeBX ~= ImGui.GetWindowWidth() or settings.sizeBY ~= ImGui.GetWindowHeight() then
+        settings.sizeBX, settings.sizeBY = ImGui.GetWindowSize()
+        saveSettings()
+    end
+    if settings.posBX ~= ImGui.GetWindowPos() or settings.posBY ~= select(2,ImGui.GetWindowPos()) then
+        settings.posBX, settings.posBY = ImGui.GetWindowPos()
+        saveSettings()
+    end
+
     ImGui.SetWindowFontScale(1)
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
@@ -371,8 +408,23 @@ local function buffWindow()
     ImGui.SetWindowFontScale(1)
 end
 
+local onloadS = true
 local function songWindow()
-    ImGui.SetWindowSize(200, 660, ImGuiCond.Once)
+    if onloadS == true then
+        ImGui.SetWindowSize(settings.sizeSX, settings.sizeSY)
+        ImGui.SetWindowPos(settings.posSX, settings.posSY)
+        onloadS = false
+    end
+
+    if settings.sizeSX ~= ImGui.GetWindowWidth() or settings.sizeSY ~= ImGui.GetWindowHeight() then
+        settings.sizeSX, settings.sizeSY = ImGui.GetWindowSize()
+        saveSettings()
+    end
+    if settings.posSX ~= ImGui.GetWindowPos() or settings.posSY ~= select(2,ImGui.GetWindowPos()) then
+        settings.posSX, settings.posSY = ImGui.GetWindowPos()
+        saveSettings()
+    end
+
     ImGui.SetWindowFontScale(1)
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
@@ -393,30 +445,25 @@ local openB, showBUI = true, true
 local openS, showSUI = true, true
 
 local function ab()
-    local buffWindowFlags
-    local songWindowFlags
-    if settings.titleB == false then
-        buffWindowFlags = bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoFocusOnAppearing)
-    else
-        buffWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
-    end
-    if settings.titleS == false then
-        songWindowFlags = bit32.bor(ImGuiWindowFlags.NoTitleBar, ImGuiWindowFlags.NoFocusOnAppearing)
-    else
-        songWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
-    end
+    local buffWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
+    local songWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
+    if settings.titleB == false then buffWindowFlags = buffWindowFlags + ImGuiWindowFlags.NoTitleBar end
+    if settings.lockedB == true then buffWindowFlags = buffWindowFlags + ImGuiWindowFlags.NoMove + ImGuiWindowFlags.NoResize end
+    if settings.titleS == false then songWindowFlags = songWindowFlags + ImGuiWindowFlags.NoTitleBar end
+    if settings.lockedS == true then songWindowFlags = songWindowFlags + ImGuiWindowFlags.NoMove + ImGuiWindowFlags.NoResize end
+
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
     ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
     if openB then
         ImGui.SetNextWindowBgAlpha(settings.alphaB/100)
-        openB, showBUI = ImGui.Begin('Alphabuff', openB, buffWindowFlags)
+        openB, showBUI = ImGui.Begin('Alphabuff##'..mq.TLO.EverQuest.Server()..mq.TLO.Me.Name(), openB, buffWindowFlags)
         if showBUI then buffWindow() end
         ImGui.End()
     end
     if openS then
         ImGui.SetNextWindowBgAlpha(settings.alphaS/100)
-        openS, showSUI = ImGui.Begin('Alphasong', openS, songWindowFlags)
+        openS, showSUI = ImGui.Begin('Alphasong##'..mq.TLO.EverQuest.Server()..mq.TLO.Me.Name(), openS, songWindowFlags)
         if showSUI then songWindow() end
         ImGui.End()
     end
@@ -434,8 +481,6 @@ local function toggleWindows(cmd)
 end
 
 mq.bind('/ab', toggleWindows)
-
-print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
 
 local terminate = false
 while not terminate do
