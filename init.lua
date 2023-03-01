@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.3.0'
+local version = '2.3.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -138,6 +138,11 @@ local function denom(s,t)
     local rem = remaining(s,t)
     local dur = duration(s,t)
     return math.max(rem, dur)
+end
+
+local function hitCount(s,t)
+    local hits = spell(s,t).HitCount() or 0
+    return hits
 end
 
 local function barColor(s,t)
@@ -302,6 +307,8 @@ local function drawTable(a, b, c)
     end
     for k,_ in pairs(spells) do
         local item = spells[k]
+        local hitcount
+        if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
         if (c and select(2,barColor(item.slot,b)) == c) or not c then
             ImGui.PushID(item)                   
                 ImGui.BeginGroup()
@@ -313,7 +320,7 @@ local function drawTable(a, b, c)
                                 ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
                                 ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
                                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                                ImGui.Text(item.name)
+                                ImGui.Text(hitcount..item.name)
                             ImGui.PopStyleColor()
                         else
                             ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
@@ -326,7 +333,7 @@ local function drawTable(a, b, c)
                 if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
                 local hms
                 if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
-                if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
+                if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
             ImGui.PopID()
         end
     end
