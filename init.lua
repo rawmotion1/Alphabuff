@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.2.0'
+local version = '2.3.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -46,7 +46,6 @@ end
 setup()
 
 print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
-print('\at[Alphabuff]\aw New in 2.1.2: Added a lock window feature. Also, windows should remember their location per toon. Sorry for repositioning your windows again -- that should be the last time.')
 
 local function switch(v)
     v = not v
@@ -276,6 +275,15 @@ local function calcRatio(s,t,d)
     return ratio
 end
 
+local function spellContext(n,s,t)
+    if ImGui.BeginPopupContextItem('##n') then 
+        if ImGui.Selectable('Inspect') then spell(s,t).Inspect() end
+        if ImGui.Selectable('Remove') then mq.cmdf('/removebuff %s', n) end
+        if ImGui.Selectable('Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
+    ImGui.EndPopup()
+    end
+end
+
 local function drawTable(a, b, c)
     if a == 1 and b == 0 and sortedBBy == 'name' then
         table.sort(buffs, sortBSlot)
@@ -295,7 +303,7 @@ local function drawTable(a, b, c)
     for k,_ in pairs(spells) do
         local item = spells[k]
         if (c and select(2,barColor(item.slot,b)) == c) or not c then
-            ImGui.PushID(item)                     
+            ImGui.PushID(item)                   
                 ImGui.BeginGroup()
                     ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
                         if item.name ~= 'zz' then
@@ -312,8 +320,10 @@ local function drawTable(a, b, c)
                         end
                     ImGui.PopStyleVar()
                 ImGui.EndGroup()
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                spellContext(item.name,item.slot,b)
+                ImGui.PopStyleVar()
                 if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                if ImGui.IsItemClicked(ImGuiMouseButton.Right) then spell(item.slot,b).Inspect() end
                 local hms
                 if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
                 if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..item.name..' ('..hms..')') end
@@ -382,7 +392,6 @@ local function buffWindow()
         ImGui.SetWindowPos(settings.posBX, settings.posBY)
         onloadB = false
     end
-
     if settings.sizeBX ~= ImGui.GetWindowWidth() or settings.sizeBY ~= ImGui.GetWindowHeight() then
         settings.sizeBX, settings.sizeBY = ImGui.GetWindowSize()
         saveSettings()
@@ -391,7 +400,6 @@ local function buffWindow()
         settings.posBX, settings.posBY = ImGui.GetWindowPos()
         saveSettings()
     end
-
     ImGui.SetWindowFontScale(1)
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
@@ -399,7 +407,7 @@ local function buffWindow()
         ImGui.Button('\xee\xa2\xb8##p')
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
         menu(0)
-        ImGui.PopStyleVar()     
+        ImGui.PopStyleVar()
         ImGui.SameLine()
         tabs(0)
     ImGui.PopStyleVar(3)
@@ -415,7 +423,6 @@ local function songWindow()
         ImGui.SetWindowPos(settings.posSX, settings.posSY)
         onloadS = false
     end
-
     if settings.sizeSX ~= ImGui.GetWindowWidth() or settings.sizeSY ~= ImGui.GetWindowHeight() then
         settings.sizeSX, settings.sizeSY = ImGui.GetWindowSize()
         saveSettings()
@@ -424,7 +431,6 @@ local function songWindow()
         settings.posSX, settings.posSY = ImGui.GetWindowPos()
         saveSettings()
     end
-
     ImGui.SetWindowFontScale(1)
     ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
     ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
@@ -443,7 +449,6 @@ end
 
 local openB, showBUI = true, true
 local openS, showSUI = true, true
-
 local function ab()
     local buffWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
     local songWindowFlags = ImGuiWindowFlags.NoFocusOnAppearing
@@ -451,7 +456,6 @@ local function ab()
     if settings.lockedB == true then buffWindowFlags = buffWindowFlags + ImGuiWindowFlags.NoMove + ImGuiWindowFlags.NoResize end
     if settings.titleS == false then songWindowFlags = songWindowFlags + ImGuiWindowFlags.NoTitleBar end
     if settings.lockedS == true then songWindowFlags = songWindowFlags + ImGuiWindowFlags.NoMove + ImGuiWindowFlags.NoResize end
-
     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
     ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
