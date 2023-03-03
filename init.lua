@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.0.0'
+local version = '3.0.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -279,6 +279,7 @@ local function updateTables()
                 if v.name ~= 'zz' then
                     v.name = 'zz'
                     v.denom = 0
+                    v.favorite = false
                     table.sort(buffs, sortBSlot)
                 end
             end
@@ -293,6 +294,7 @@ local function updateTables()
                 if v.name ~= 'zz' then
                     v.name = 'zz'
                     v.denom = 0
+                    v.favorite = false
                     table.sort(buffs, sortBName)
                 end
             end
@@ -310,6 +312,7 @@ local function updateTables()
                 if v.name ~= 'zz' then
                     v.name = 'zz'
                     v.denom = 0
+                    v.favorite = false
                     table.sort(songs, sortSSlot)
                 end
             end
@@ -324,6 +327,7 @@ local function updateTables()
                 if v.name ~= 'zz' then
                     v.name = 'zz'
                     v.denom = 0
+                    v.favorite = false
                     table.sort(songs, sortSName)
                 end
             end
