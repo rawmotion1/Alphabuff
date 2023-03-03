@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '2.3.1'
+local version = '3.0.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -8,9 +8,11 @@ require('ImGui')
 
 local path = 'Alphabuff_'..mq.TLO.Me.Name()..'.lua'
 local settings = {}
+local favbuffs = {}
+local favsongs = {}
 
 local function saveSettings()
-    mq.pickle(path, settings)
+    mq.pickle(path, { settings=settings, favbuffs=favbuffs, favsongs=favsongs })
 end
 
 local function defaults(a)
@@ -32,13 +34,20 @@ local function defaults(a)
 end
 
 local function setup()
+    local conf = {}
     local configData, err = loadfile(mq.configDir..'/'..path)
     if err then
         defaults('all')
-        mq.pickle(path, settings)
         print('\at[Alphabuff]\aw Creating config file...')
     elseif configData then
-        settings = configData()
+        conf = configData()
+        if not conf.settings then
+            local sets = conf
+            conf = { settings = sets, favbuffs=favbuffs, favsongs=favsongs }
+        end
+        settings = conf.settings
+        favbuffs = conf.favbuffs
+        favsongs = conf.favsongs
         defaults()
         print('\at[Alphabuff]\aw Loading config file...')
     end
@@ -174,13 +183,31 @@ local function icon(s,t)
     return ImGui.DrawTextureAnimation(anim, 17, 17)
 end
 
+local function calcRatio(s,t,d)
+    local _, color = barColor(s,t)
+    local ratio
+    if color == 'gray' then
+        ratio = 1
+    elseif color == 'green' or color == 'red' then
+        ratio = remaining(s,t) / d
+    elseif color == 'blue' and remaining(s,t) / 60 >= 20 then
+        ratio = 1
+    elseif color == 'blue' and remaining(s,t) / 60 < 20 then
+        ratio = (remaining(s,t) / 60) / 20
+    else
+        ratio = 0
+    end
+    return ratio
+end
+
 local buffs = {}
 local function loadBuffs()
     for i = 1,42 do
         local buff = {
             slot = i,
             name = name(i,0),
-            denom = denom(i,0)}
+            denom = denom(i,0),
+            favorite = false}
         table.insert(buffs, buff)
     end
 end
@@ -192,11 +219,52 @@ local function loadSongs()
         local song = {
             slot = i,
             name = name(i,1),
-            denom = denom(i,1)}
+            denom = denom(i,1),
+            favorite = false}
         table.insert(songs, song)
     end
 end
 loadSongs()
+
+local function areFavorites(t)
+    local blength = 0
+    local slength = 0
+    if favbuffs == nil then return 0 end
+    for k,v in pairs(favbuffs) do
+        blength = blength + 1
+    end
+    if favsongs == nil then return 0 end
+    for k,v in pairs(favsongs) do
+        slength = slength + 1
+    end
+    if t == 0 then 
+        return blength 
+    else 
+        return slength 
+    end
+end
+
+local function applyFavorites()
+    if areFavorites(0) > 0 then
+        for k,v in pairs(buffs) do
+            for l,w in pairs(favbuffs) do
+                if v.name == w then
+                    v.favorite = true
+                end
+            end
+        end
+    end
+    if areFavorites(1) > 0 then
+        for k,v in pairs(songs) do
+            for l,w in pairs(favsongs) do
+                if v.name == w then
+                    v.favorite = true
+                end
+            end
+        end
+    end
+end
+applyFavorites()
 
 local function updateTables()
     for k,v in pairs(buffs) do
@@ -263,28 +331,165 @@ local function updateTables()
     end
 end
 
-local function calcRatio(s,t,d)
-    local _, color = barColor(s,t)
-    local ratio
-    if color == 'gray' then
-        ratio = 1
-    elseif color == 'green' or color == 'red' then
-        ratio = remaining(s,t) / d
-    elseif color == 'blue' and remaining(s,t) / 60 >= 20 then
-        ratio = 1
-    elseif color == 'blue' and remaining(s,t) / 60 < 20 then
-        ratio = (remaining(s,t) / 60) / 20
-    else
-        ratio = 0
+local function reIndex()
+    local indexB = 1
+    local tmpB = {}
+    for _,v in pairs(favbuffs) do
+        tmpB[indexB] = v
+        indexB = indexB + 1
     end
-    return ratio
+    favbuffs = tmpB
+    local indexS = 1
+    local tmpS = {}
+    for _,v in pairs(favsongs) do
+        tmpS[indexS] = v
+        indexS = indexS + 1
+    end
+    favsongs = tmpS
+    saveSettings()
+end
+
+local function moveUp(n,t)
+    local list
+    if t == 0 then list = favbuffs
+    elseif t == 1 then list = favsongs end
+    local mover
+    local moved
+    local moverIdx
+    local movedIdx
+    for k,v in pairs(list) do
+        if v == n then
+            if k == 0 then return end
+            mover = v
+            moved = list[k-1]
+            moverIdx = k
+            movedIdx = k-1
+        end
+    end
+    list[movedIdx] = mover
+    list[moverIdx] = moved
+    reIndex()
+end
+
+local function moveDown(n,t)
+    local length = areFavorites(t)
+    local list
+    if t == 0 then list = favbuffs
+    elseif t == 1 then list = favsongs end
+    local mover
+    local moved
+    local moverIdx
+    local movedIdx
+    for k,v in pairs(list) do
+        if v == n then
+            if k == length then return end
+            mover = v
+            moved = list[k+1]
+            moverIdx = k
+            movedIdx = k+1
+        end
+    end
+    list[movedIdx] = mover
+    list[moverIdx] = moved
+    reIndex()
+end
+
+local function addFavorite(s,t)
+    local fav = name(s,t)
+    if t == 0 then
+        for _,v in pairs(favbuffs) do
+            if v == fav then return end
+        end
+        table.insert(favbuffs, fav)
+        for l,w in pairs(buffs) do
+            if w.name == fav then
+               w.favorite = true
+            end
+        end
+    elseif t == 1 then
+        for _,v in pairs(favsongs) do
+            if v == fav then return end
+        end
+        table.insert(favsongs, fav)
+        for l,w in pairs(songs) do
+            if w.name == fav then
+               w.favorite = true
+            end
+        end
+    end
+    reIndex()
+end
+
+local function unFavorite(s,t)
+    local fav = name(s,t)
+    if t == 0 then
+        for k,v in pairs(favbuffs) do
+            if v == fav then favbuffs[k] = nil end
+        end
+        for l,w in pairs(buffs) do
+            if w.name == fav then
+               w.favorite = false
+            end
+        end
+    elseif t == 1 then
+        for k,v in pairs(favsongs) do
+            if v == fav then favsongs[k] = nil end
+        end
+        for l,w in pairs(songs) do
+            if w.name == fav then
+               w.favorite = false
+            end
+        end
+    end
+    reIndex()
+end
+
+local function unFavoriteGray(n,t)
+    if t == 0 then
+        for k,v in pairs(favbuffs) do
+            if v == n then favbuffs[k] = nil end
+        end
+    elseif t == 1 then
+        for k,v in pairs(favsongs) do
+            if v == n then favsongs[k] = nil end
+        end
+    end
+    reIndex()
 end
 
 local function spellContext(n,s,t)
     if ImGui.BeginPopupContextItem('##n') then 
-        if ImGui.Selectable('Inspect') then spell(s,t).Inspect() end
-        if ImGui.Selectable('Remove') then mq.cmdf('/removebuff %s', n) end
-        if ImGui.Selectable('Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
+        if ImGui.Selectable('\xee\xa1\xbd'..' Favorite') then addFavorite(s,t) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then spell(s,t).Inspect() end
+        if ImGui.Selectable('\xee\xa1\xb2'..' Remove') then mq.cmdf('/removebuff %s', n) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
+    ImGui.EndPopup()
+    end
+end
+
+local function favContext(n,s,t)
+    if ImGui.BeginPopupContextItem('##n') then
+        if ImGui.Selectable('\xee\x97\x87'..' Move up') then moveUp(n,t) end
+        if ImGui.Selectable('\xee\x97\x85'..' Move down') then moveDown(n,t) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xef\x82\x8a'..' Unfavorite') then unFavorite(s,t) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then spell(s,t).Inspect() end
+        if ImGui.Selectable('\xee\xa1\xb2'..' Remove') then mq.cmdf('/removebuff %s', n) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
+    ImGui.EndPopup()
+    end
+end
+
+local function favContextGray(n,t)
+    if ImGui.BeginPopupContextItem('##nn') then
+        if ImGui.Selectable('\xee\x97\x87'..' Move up') then moveUp(n,t) end
+        if ImGui.Selectable('\xee\x97\x85'..' Move down') then moveDown(n,t) end
+        ImGui.Separator()
+        if ImGui.Selectable('\xef\x82\x8a'..' Unfavorite') then unFavoriteGray(n,t) end
     ImGui.EndPopup()
     end
 end
@@ -300,7 +505,7 @@ local function drawTable(a, b, c)
         table.sort(songs, sortSName)
     end
     local spells
-    if b == 0 then 
+    if b == 0 then
         spells = buffs
     elseif b == 1 then
         spells = songs
@@ -309,33 +514,104 @@ local function drawTable(a, b, c)
         local item = spells[k]
         local hitcount
         if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
-        if (c and select(2,barColor(item.slot,b)) == c) or not c then
-            ImGui.PushID(item)                   
-                ImGui.BeginGroup()
-                    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+        if item.favorite == false and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                ImGui.PushID(item.name)
+                    if item.name ~= 'zz' then
+                        ImGui.BeginGroup()
+                            
+                                icon(item.slot,b)
+                                ImGui.SameLine()
+                                barColor(item.slot,b)
+                                    ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
+                                    ImGui.Text(hitcount..item.name)
+                                ImGui.PopStyleColor()
+                            
+                        ImGui.EndGroup()
+                    elseif item.name == 'zz' then
+                        ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
+                    end
+                    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                    spellContext(item.name,item.slot,b)
+                    ImGui.PopStyleVar()
+                    if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                    local hms
+                    if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
+                    if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
+                ImGui.PopID()
+            ImGui.PopStyleVar()
+        end
+    end
+end
+
+local function drawFavorites(b)
+    if areFavorites(b) > 0 then
+        local spells
+        local favs
+        if b == 0 then
+            spells = buffs
+            favs = favbuffs
+        elseif b == 1 then
+            spells = songs
+            favs = favsongs
+        end
+        for _,v in pairs(favs) do
+            local index
+            for l,w in pairs(spells) do
+                if v == w.name then index = l end
+            end
+            local item = spells[index]
+            if item ~= nil then
+                local hitcount
+                if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                    ImGui.PushID(v)
                         if item.name ~= 'zz' then
-                            icon(item.slot,b)
-                            ImGui.SameLine()
-                            barColor(item.slot,b)
-                                ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                            ImGui.BeginGroup()
+                                    icon(item.slot,b)
+                                    ImGui.SameLine()
+                                    barColor(item.slot,b)
+                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
+                                        ImGui.Text(hitcount..item.name)
+                                    ImGui.PopStyleColor()
+                            ImGui.EndGroup()
+                        end
+                        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                        favContext(item.name,item.slot,b)
+                        ImGui.PopStyleVar()
+                        if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                        local hms
+                        if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
+                        if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
+                    ImGui.PopID()
+                ImGui.PopStyleVar()
+            else
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                    ImGui.PushID(v..'off')
+                            ImGui.BeginGroup()
+                                anim:SetTextureCell(mq.TLO.Spell(v).SpellIcon())
+                                ImGui.DrawTextureAnimation(anim, 17, 17)
+                                ImGui.SameLine()
+                                ImGui.ProgressBar(0, ImGui.GetContentRegionAvail(), 16, '##'..v)
                                 ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
                                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                                ImGui.Text(hitcount..item.name)
-                            ImGui.PopStyleColor()
-                        else
-                            ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
-                        end
-                    ImGui.PopStyleVar()
-                ImGui.EndGroup()
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                spellContext(item.name,item.slot,b)
+                                ImGui.TextColored(1,1,1,.3,v)
+                                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 19)
+                                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 1)
+                                ImGui.TextColored(.5,.5,.5,.5,'\xee\xa4\x89')
+                            ImGui.EndGroup()
+                        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                        favContextGray(v,b)
+                        ImGui.PopStyleVar()
+                    ImGui.PopID()
                 ImGui.PopStyleVar()
-                if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                local hms
-                if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
-                if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
-            ImGui.PopID()
+            end
         end
+        ImGui.Separator()
     end
 end
 
@@ -374,14 +650,23 @@ end
 local function tabs(t)
     ImGui.BeginTabBar('sortbar')
     if ImGui.BeginTabItem('Slot') then
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+        drawFavorites(t)
+        ImGui.PopStyleVar()
         drawTable(1,t)
         ImGui.EndTabItem()
     end
     if ImGui.BeginTabItem('Name') then
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+        drawFavorites(t)
+        ImGui.PopStyleVar()
         drawTable(2,t)
         ImGui.EndTabItem()
     end
     if ImGui.BeginTabItem('Type') then
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+        drawFavorites(t)
+        ImGui.PopStyleVar()
         drawTable(2,t,'gray')
         drawTable(2,t,'blue')
         drawTable(2,t,'green')
@@ -496,6 +781,7 @@ mq.bind('/ab', toggleWindows)
 local terminate = false
 while not terminate do
     updateTables()
+    applyFavorites()
     mq.delay(100)
     if mq.TLO.MacroQuest.GameState() ~= 'INGAME' then mq.exit() end
 end
