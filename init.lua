@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.0.1'
+local version = '3.0.2'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -251,6 +251,7 @@ local function applyFavorites()
                 if v.name == w then
                     v.favorite = true
                 end
+                if w == 'zz' then favbuffs[l] = nil end
             end
         end
     end
@@ -260,6 +261,7 @@ local function applyFavorites()
                 if v.name == w then
                     v.favorite = true
                 end
+                if w == 'zz' then favsongs[l] = nil end
             end
         end
     end
@@ -273,6 +275,7 @@ local function updateTables()
                 if v.name ~= name(k,0) then
                     v.name = name(k,0)
                     v.denom = denom(k,0)
+                    v.favorite = false
                     table.sort(buffs, sortBSlot)
                 end
             else
@@ -288,6 +291,7 @@ local function updateTables()
                 if v.name ~= name(v.slot,0) then
                     v.name = name(v.slot,0)
                     v.denom = denom(v.slot,0)
+                    v.favorite = false
                     table.sort(buffs, sortBName)
                 end
             else
@@ -306,6 +310,7 @@ local function updateTables()
                 if v.name ~= name(k,1) then
                     v.name = name(k,1)
                     v.denom = denom(k,1)
+                    v.favorite = false
                     table.sort(songs, sortSSlot)
                 end
             else
@@ -321,6 +326,7 @@ local function updateTables()
                 if v.name ~= name(v.slot,1) then
                     v.name = name(v.slot,1)
                     v.denom = denom(v.slot,1)
+                    v.favorite = false
                     table.sort(songs, sortSName)
                 end
             else
@@ -400,6 +406,7 @@ end
 
 local function addFavorite(s,t)
     local fav = name(s,t)
+    if fav == 'zz' then return end
     if t == 0 then
         for _,v in pairs(favbuffs) do
             if v == fav then return end
@@ -777,6 +784,11 @@ local function toggleWindows(cmd)
         openB = not openB
     elseif cmd == 'song' then
         openS = not openS
+    elseif cmd == 'songs' then
+        for k,v in pairs(songs) do
+            print(v.slot..' '..v.name)
+            print(v.favorite)
+        end
     end
 end
 
