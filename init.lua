@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.0.2'
+local version = '3.0.3'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -784,11 +784,6 @@ local function toggleWindows(cmd)
         openB = not openB
     elseif cmd == 'song' then
         openS = not openS
-    elseif cmd == 'songs' then
-        for k,v in pairs(songs) do
-            print(v.slot..' '..v.name)
-            print(v.favorite)
-        end
     end
 end
 
