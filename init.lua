@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.0.3'
+local version = '3.1.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -30,6 +30,8 @@ local function defaults(a)
     if a == 'all' or settings.posBY == nil then settings.posBY = 60 end
     if a == 'all' or settings.posSX == nil then settings.posSX = 60 end
     if a == 'all' or settings.posSY == nil then settings.posSY = 60 end
+    if a == 'all' or settings.favBShow == nil then settings.favBShow = 3 end
+    if a == 'all' or settings.favSShow == nil then settings.favSShow = 3 end
     saveSettings()
 end
 
@@ -525,7 +527,7 @@ local function drawTable(a, b, c)
         local item = spells[k]
         local hitcount
         if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
-        if item.favorite == false and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
+        if (item.favorite == false or (b == 0 and settings.favBShow == 0) or (b == 1 and settings.favSShow == 0)) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
                 ImGui.PushID(item.name)
                     if item.name ~= 'zz' then
@@ -579,7 +581,7 @@ local function drawFavorites(b)
                 if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
                 ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
                     ImGui.PushID(v)
-                        if item.name ~= 'zz' then
+                        if (b == 0 and settings.favBShow ~= 2 and item.name ~= 'zz') or (b == 1 and settings.favSShow ~= 2 and item.name ~= 'zz') then
                             ImGui.BeginGroup()
                                     icon(item.slot,b)
                                     ImGui.SameLine()
@@ -600,7 +602,7 @@ local function drawFavorites(b)
                         if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
                     ImGui.PopID()
                 ImGui.PopStyleVar()
-            else
+            elseif (b == 0 and settings.favBShow ~= 1) or (b == 1 and settings.favSShow ~= 1) then
                 ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
                     ImGui.PushID(v..'off')
                             ImGui.BeginGroup()
@@ -636,23 +638,52 @@ local function menu(t)
             if update then switch(settings.lockedB) end
             settings.titleB, update = ImGui.Checkbox('Show title bar', settings.titleB)
             if update then switch(settings.titleB) end
+            ImGui.PushItemWidth(100)
             settings.alphaB, update = ImGui.SliderInt('Alpha', settings.alphaB, 0, 100)
+            ImGui.PopItemWidth()
             if update == true then updated = true end
             if updated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
                 saveSettings()
                 updated = false
             end
+            ImGui.Text('Favorites')
+            ImGui.Separator()
+            
+            settings.favBShow, update = ImGui.RadioButton('Disable', settings.favBShow, 0)
+            if update then saveSettings() end
+            settings.favBShow, update = ImGui.RadioButton('Only active', settings.favBShow, 1)
+            if update then saveSettings() end
+            settings.favBShow, update = ImGui.RadioButton('Only missing', settings.favBShow, 2)
+            if update then saveSettings() end
+            settings.favBShow, update = ImGui.RadioButton('Show both', settings.favBShow, 3)
+            if update then saveSettings() end
+
         elseif t == 1 then
             settings.lockedS, update = ImGui.Checkbox('Lock window', settings.lockedS)
             if update then switch(settings.lockedS) end
             settings.titleS, update = ImGui.Checkbox('Show title bar', settings.titleS)
             if update then switch(settings.titleS) end
+            ImGui.PushItemWidth(100)
             settings.alphaS, update = ImGui.SliderInt('Alpha', settings.alphaS, 0, 100)
+            ImGui.PopItemWidth()
             if update == true then updated = true end
             if updated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
                 saveSettings()
                 updated = false
             end
+
+            ImGui.Text('Favorites')
+            ImGui.Separator()
+            
+            settings.favSShow, update = ImGui.RadioButton('Disable', settings.favSShow, 0)
+            if update then saveSettings() end
+            settings.favSShow, update = ImGui.RadioButton('Only active', settings.favSShow, 1)
+            if update then saveSettings() end
+            settings.favSShow, update = ImGui.RadioButton('Only missing', settings.favSShow, 2)
+            if update then saveSettings() end
+            settings.favSShow, update = ImGui.RadioButton('Show both', settings.favSShow, 3)
+            if update then saveSettings() end
+
         end
     ImGui.EndPopup()
     end
@@ -661,23 +692,29 @@ end
 local function tabs(t)
     ImGui.BeginTabBar('sortbar')
     if ImGui.BeginTabItem('Slot') then
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-        drawFavorites(t)
-        ImGui.PopStyleVar()
+        if (t == 0 and settings.favBShow ~= 0) or (t == 1 and settings.favSShow ~= 0) then
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+                drawFavorites(t)
+            ImGui.PopStyleVar()
+        end
         drawTable(1,t)
         ImGui.EndTabItem()
     end
     if ImGui.BeginTabItem('Name') then
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-        drawFavorites(t)
-        ImGui.PopStyleVar()
+        if (t == 0 and settings.favBShow ~= 0) or (t == 1 and settings.favSShow ~= 0) then
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+                drawFavorites(t)
+            ImGui.PopStyleVar()
+        end
         drawTable(2,t)
         ImGui.EndTabItem()
     end
     if ImGui.BeginTabItem('Type') then
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-        drawFavorites(t)
-        ImGui.PopStyleVar()
+        if (t == 0 and settings.favBShow ~= 0) or (t == 1 and settings.favSShow ~= 0) then
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+                drawFavorites(t)
+            ImGui.PopStyleVar()
+        end
         drawTable(2,t,'gray')
         drawTable(2,t,'blue')
         drawTable(2,t,'green')
