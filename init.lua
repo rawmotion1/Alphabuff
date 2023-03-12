@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.1.1'
+local version = '3.2.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -32,6 +32,8 @@ local function defaults(a)
     if a == 'all' or settings.posSY == nil then settings.posSY = 60 end
     if a == 'all' or settings.favBShow == nil then settings.favBShow = 3 end
     if a == 'all' or settings.favSShow == nil then settings.favSShow = 3 end
+    if a == 'all' or settings.hideB == nil then settings.hideB = false end
+    if a == 'all' or settings.hideS == nil then settings.hideS = false end
     saveSettings()
 end
 
@@ -527,34 +529,36 @@ local function drawTable(a, b, c)
         local item = spells[k]
         local hitcount
         if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
-        if (item.favorite == false or (b == 0 and (settings.favBShow == 0 or settings.favBShow == 2)) or (b == 1 and (settings.favSShow == 0 or settings.favSShow == 2))) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
-                ImGui.PushID(item.name)
-                    if item.name ~= 'zz' then
-                        ImGui.BeginGroup()
-                            
-                                icon(item.slot,b)
-                                ImGui.SameLine()
-                                barColor(item.slot,b)
-                                    ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
-                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
-                                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                                    ImGui.Text(hitcount..item.name)
-                                ImGui.PopStyleColor()
-                            
-                        ImGui.EndGroup()
-                    elseif item.name == 'zz' then
-                        ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
-                    end
-                    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                    spellContext(item.name,item.slot,b)
-                    ImGui.PopStyleVar()
-                    if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                    local hms
-                    if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
-                    if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
-                ImGui.PopID()
-            ImGui.PopStyleVar()
+        if (b == 0 and (settings.hideB == false or select(2,barColor(item.slot,0)) == 'red')) or (b == 1 and (settings.hideS == false or select(2,barColor(item.slot,1)) == 'red')) then
+            if (item.favorite == false or (b == 0 and (settings.favBShow == 0 or settings.favBShow == 2)) or (b == 1 and (settings.favSShow == 0 or settings.favSShow == 2))) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                    ImGui.PushID(item.name)
+                        if item.name ~= 'zz' then
+                            ImGui.BeginGroup()
+                                
+                                    icon(item.slot,b)
+                                    ImGui.SameLine()
+                                    barColor(item.slot,b)
+                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
+                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
+                                        ImGui.Text(hitcount..item.name)
+                                    ImGui.PopStyleColor()
+                                
+                            ImGui.EndGroup()
+                        elseif item.name == 'zz' then
+                            ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
+                        end
+                        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                        spellContext(item.name,item.slot,b)
+                        ImGui.PopStyleVar()
+                        if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                        local hms
+                        if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
+                        if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
+                    ImGui.PopID()
+                ImGui.PopStyleVar()
+            end
         end
     end
 end
@@ -658,6 +662,9 @@ local function menu(t)
             settings.favBShow, update = ImGui.RadioButton('Show both', settings.favBShow, 3)
             if update then saveSettings() end
 
+            settings.hideB, update = ImGui.Checkbox('Hide non-favoties', settings.hideB)
+            if update then switch(settings.hideB) end
+
         elseif t == 1 then
             settings.lockedS, update = ImGui.Checkbox('Lock window', settings.lockedS)
             if update then switch(settings.lockedS) end
@@ -683,6 +690,9 @@ local function menu(t)
             if update then saveSettings() end
             settings.favSShow, update = ImGui.RadioButton('Show both', settings.favSShow, 3)
             if update then saveSettings() end
+
+            settings.hideS, update = ImGui.Checkbox('Hide non-favoties', settings.hideS)
+            if update then switch(settings.hideS) end
 
         end
     ImGui.EndPopup()
