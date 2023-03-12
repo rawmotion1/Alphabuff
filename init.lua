@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.1.0'
+local version = '3.1.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -527,7 +527,7 @@ local function drawTable(a, b, c)
         local item = spells[k]
         local hitcount
         if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
-        if (item.favorite == false or (b == 0 and settings.favBShow == 0) or (b == 1 and settings.favSShow == 0)) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
+        if (item.favorite == false or (b == 0 and (settings.favBShow == 0 or settings.favBShow == 2)) or (b == 1 and (settings.favSShow == 0 or settings.favSShow == 2))) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
                 ImGui.PushID(item.name)
                     if item.name ~= 'zz' then
