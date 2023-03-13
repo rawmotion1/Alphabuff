@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.2.0'
+local version = '3.2.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -650,9 +650,9 @@ local function menu(t)
                 saveSettings()
                 updated = false
             end
-            ImGui.Text('Favorites')
-            ImGui.Separator()
             
+            ImGui.Separator()
+            ImGui.Text('Favorites')
             settings.favBShow, update = ImGui.RadioButton('Disable', settings.favBShow, 0)
             if update then saveSettings() end
             settings.favBShow, update = ImGui.RadioButton('Only active', settings.favBShow, 1)
@@ -661,7 +661,7 @@ local function menu(t)
             if update then saveSettings() end
             settings.favBShow, update = ImGui.RadioButton('Show both', settings.favBShow, 3)
             if update then saveSettings() end
-
+            ImGui.Separator()
             settings.hideB, update = ImGui.Checkbox('Hide non-favoties', settings.hideB)
             if update then switch(settings.hideB) end
 
@@ -678,10 +678,10 @@ local function menu(t)
                 saveSettings()
                 updated = false
             end
-
-            ImGui.Text('Favorites')
-            ImGui.Separator()
             
+            
+            ImGui.Separator()
+            ImGui.Text('Favorites')
             settings.favSShow, update = ImGui.RadioButton('Disable', settings.favSShow, 0)
             if update then saveSettings() end
             settings.favSShow, update = ImGui.RadioButton('Only active', settings.favSShow, 1)
@@ -690,7 +690,7 @@ local function menu(t)
             if update then saveSettings() end
             settings.favSShow, update = ImGui.RadioButton('Show both', settings.favSShow, 3)
             if update then saveSettings() end
-
+            ImGui.Separator()
             settings.hideS, update = ImGui.Checkbox('Hide non-favoties', settings.hideS)
             if update then switch(settings.hideS) end
 
