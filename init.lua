@@ -1,12 +1,14 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.2.1'
+local version = '3.2.2'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
 require('ImGui')
 
-local path = 'Alphabuff_'..mq.TLO.Me.Name()..'.lua'
+local toon = mq.TLO.Me.Name() or ''
+local server = mq.TLO.EverQuest.Server() or ''
+local path = 'Alphabuff_'..toon..'.lua'
 local settings = {}
 local favbuffs = {}
 local favsongs = {}
@@ -811,13 +813,13 @@ local function ab()
     ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
     if openB then
         ImGui.SetNextWindowBgAlpha(settings.alphaB/100)
-        openB, showBUI = ImGui.Begin('Alphabuff##'..mq.TLO.EverQuest.Server()..mq.TLO.Me.Name(), openB, buffWindowFlags)
+        openB, showBUI = ImGui.Begin('Alphabuff##'..server..toon, openB, buffWindowFlags)
         if showBUI then buffWindow() end
         ImGui.End()
     end
     if openS then
         ImGui.SetNextWindowBgAlpha(settings.alphaS/100)
-        openS, showSUI = ImGui.Begin('Alphasong##'..mq.TLO.EverQuest.Server()..mq.TLO.Me.Name(), openS, songWindowFlags)
+        openS, showSUI = ImGui.Begin('Alphasong##'..server..toon, openS, songWindowFlags)
         if showSUI then songWindow() end
         ImGui.End()
     end
