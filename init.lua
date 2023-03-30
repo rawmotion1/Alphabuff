@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.2.2'
+local version = '3.3.0'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -12,6 +12,24 @@ local path = 'Alphabuff_'..toon..'.lua'
 local settings = {}
 local favbuffs = {}
 local favsongs = {}
+local font_scale = {
+    {
+         label = "Tiny",
+         size = 8
+    },
+    {
+         label = "Small",
+         size = 9
+    },
+    {
+         label = "Normal",
+         size = 10
+    },
+    {
+         label = "Large",
+         size  = 11
+    }
+}
 
 local function saveSettings()
     mq.pickle(path, { settings=settings, favbuffs=favbuffs, favsongs=favsongs })
@@ -36,6 +54,7 @@ local function defaults(a)
     if a == 'all' or settings.favSShow == nil then settings.favSShow = 3 end
     if a == 'all' or settings.hideB == nil then settings.hideB = false end
     if a == 'all' or settings.hideS == nil then settings.hideS = false end
+    if a == 'all' or settings.font == nil then settings.font = 10 end
     saveSettings()
 end
 
@@ -511,6 +530,30 @@ local function favContextGray(n,t)
     end
 end
 
+local progHeight
+local progSpacing
+local labelOffset
+local function sizes()
+    if settings.font == 8 then
+        progHeight = 14
+        progSpacing = 2
+        labelOffset = 18
+    elseif settings.font == 9 then
+        progHeight = 15
+        progSpacing = 3
+        labelOffset = 20
+    elseif settings.font == 10 then
+        progHeight = 16
+        progSpacing = 4
+        labelOffset = 21
+    elseif settings.font == 11 then
+        progHeight = 18
+        progSpacing = 4
+        labelOffset = 22
+    end
+end
+sizes()
+
 local function drawTable(a, b, c)
     if a == 1 and b == 0 and sortedBBy == 'name' then
         table.sort(buffs, sortBSlot)
@@ -533,7 +576,7 @@ local function drawTable(a, b, c)
         if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
         if (b == 0 and (settings.hideB == false or select(2,barColor(item.slot,0)) == 'red')) or (b == 1 and (settings.hideS == false or select(2,barColor(item.slot,1)) == 'red')) then
             if (item.favorite == false or (b == 0 and (settings.favBShow == 0 or settings.favBShow == 2)) or (b == 1 and (settings.favSShow == 0 or settings.favSShow == 2))) and ((c and select(2,barColor(item.slot,b)) == c) or not c) then
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, progSpacing)
                     ImGui.PushID(item.name)
                         if item.name ~= 'zz' then
                             ImGui.BeginGroup()
@@ -541,8 +584,8 @@ local function drawTable(a, b, c)
                                     icon(item.slot,b)
                                     ImGui.SameLine()
                                     barColor(item.slot,b)
-                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
-                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), progHeight, '##'..item.name)
+                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - labelOffset)
                                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
                                         ImGui.Text(hitcount..item.name)
                                     ImGui.PopStyleColor()
@@ -552,7 +595,7 @@ local function drawTable(a, b, c)
                             ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
                         end
                         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                        spellContext(item.name,item.slot,b)
+                            spellContext(item.name,item.slot,b)
                         ImGui.PopStyleVar()
                         if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
                         local hms
@@ -585,22 +628,22 @@ local function drawFavorites(b)
             if item ~= nil then
                 local hitcount
                 if hitCount(item.slot,b) ~= 0 then hitcount = '['..hitCount(item.slot,b)..'] ' else hitcount = '' end
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, progSpacing)
                     ImGui.PushID(v)
                         if (b == 0 and settings.favBShow ~= 2 and item.name ~= 'zz') or (b == 1 and settings.favSShow ~= 2 and item.name ~= 'zz') then
                             ImGui.BeginGroup()
                                     icon(item.slot,b)
                                     ImGui.SameLine()
                                     barColor(item.slot,b)
-                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), 16, '##'..item.name)
-                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                        ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), progHeight, '##'..item.name)
+                                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - labelOffset)
                                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
                                         ImGui.Text(hitcount..item.name)
                                     ImGui.PopStyleColor()
                             ImGui.EndGroup()
                         end
                         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                        favContext(item.name,item.slot,b)
+                            favContext(item.name,item.slot,b)
                         ImGui.PopStyleVar()
                         if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
                         local hms
@@ -609,14 +652,14 @@ local function drawFavorites(b)
                     ImGui.PopID()
                 ImGui.PopStyleVar()
             elseif (b == 0 and settings.favBShow ~= 1) or (b == 1 and settings.favSShow ~= 1) then
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 4)
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, progSpacing)
                     ImGui.PushID(v..'off')
                             ImGui.BeginGroup()
                                 anim:SetTextureCell(mq.TLO.Spell(v).SpellIcon())
                                 ImGui.DrawTextureAnimation(anim, 17, 17)
                                 ImGui.SameLine()
-                                ImGui.ProgressBar(0, ImGui.GetContentRegionAvail(), 16, '##'..v)
-                                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 21)
+                                ImGui.ProgressBar(0, ImGui.GetContentRegionAvail(), progHeight, '##'..v)
+                                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - labelOffset)
                                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
                                 ImGui.TextColored(1,1,1,.3,v)
                                 ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 19)
@@ -624,7 +667,7 @@ local function drawFavorites(b)
                                 ImGui.TextColored(.5,.5,.5,.5,'\xee\xa4\x89')
                             ImGui.EndGroup()
                         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                        favContextGray(v,b)
+                            favContextGray(v,b)
                         ImGui.PopStyleVar()
                     ImGui.PopID()
                 ImGui.PopStyleVar()
@@ -651,6 +694,14 @@ local function menu(t)
             if updated == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
                 saveSettings()
                 updated = false
+            end
+            ImGui.Separator()
+            if ImGui.BeginMenu("Font Scale") then
+                for _,v in pairs(font_scale) do
+                    local checked = settings.font == v.size
+                    if ImGui.MenuItem(v.label, nil, checked) then settings.font = v.size saveSettings() sizes() break end
+                end
+                ImGui.EndMenu()
             end
             
             ImGui.Separator()
@@ -680,7 +731,14 @@ local function menu(t)
                 saveSettings()
                 updated = false
             end
-            
+            ImGui.Separator()
+            if ImGui.BeginMenu("Font Scale") then
+                for _,v in pairs(font_scale) do
+                    local checked = settings.font == v.size
+                    if ImGui.MenuItem(v.label, nil, checked) then settings.font = v.size saveSettings() sizes() break end
+                end
+                ImGui.EndMenu()
+            end
             
             ImGui.Separator()
             ImGui.Text('Favorites')
@@ -702,6 +760,7 @@ local function menu(t)
 end
 
 local function tabs(t)
+    ImGui.SetWindowFontScale(settings.font/10)
     ImGui.BeginTabBar('sortbar')
     if ImGui.BeginTabItem('Slot') then
         if (t == 0 and settings.favBShow ~= 0) or (t == 1 and settings.favSShow ~= 0) then
