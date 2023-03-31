@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.3.0'
+local version = '3.3.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -494,6 +494,7 @@ local function unFavoriteGray(n,t)
 end
 
 local function spellContext(n,s,t)
+    ImGui.SetWindowFontScale(1)
     if ImGui.BeginPopupContextItem('##n') then 
         if ImGui.Selectable('\xee\xa1\xbd'..' Favorite') then addFavorite(s,t) end
         ImGui.Separator()
@@ -503,9 +504,11 @@ local function spellContext(n,s,t)
         if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
     ImGui.EndPopup()
     end
+    ImGui.SetWindowFontScale(settings.font/10)
 end
 
 local function favContext(n,s,t)
+    ImGui.SetWindowFontScale(1)
     if ImGui.BeginPopupContextItem('##n') then
         if ImGui.Selectable('\xee\x97\x87'..' Move up') then moveUp(n,t) end
         if ImGui.Selectable('\xee\x97\x85'..' Move down') then moveDown(n,t) end
@@ -518,9 +521,11 @@ local function favContext(n,s,t)
         if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
     ImGui.EndPopup()
     end
+    ImGui.SetWindowFontScale(1)
 end
 
 local function favContextGray(n,t)
+    ImGui.SetWindowFontScale(1)
     if ImGui.BeginPopupContextItem('##nn') then
         if ImGui.Selectable('\xee\x97\x87'..' Move up') then moveUp(n,t) end
         if ImGui.Selectable('\xee\x97\x85'..' Move down') then moveDown(n,t) end
@@ -528,6 +533,7 @@ local function favContextGray(n,t)
         if ImGui.Selectable('\xef\x82\x8a'..' Unfavorite') then unFavoriteGray(n,t) end
     ImGui.EndPopup()
     end
+    ImGui.SetWindowFontScale(settings.font/10)
 end
 
 local progHeight
@@ -678,7 +684,9 @@ local function drawFavorites(b)
 end
 
 local function menu(t)
-   if ImGui.BeginPopupContextItem('Settings Menu') then
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 5)
+    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 4, 0)
+    if ImGui.BeginPopupContextItem('Settings Menu') then
         local update
         ImGui.Text('Settings')
         ImGui.Separator()
@@ -757,6 +765,7 @@ local function menu(t)
         end
     ImGui.EndPopup()
     end
+    ImGui.PopStyleVar(2)
 end
 
 local function tabs(t)
