@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.3.1'
+local version = '3.3.2'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -143,9 +143,9 @@ local function sortSName(a, b)
 end
 
 local function spell(s,t)
-    if t == 0 then 
+    if t == 0 then
         return mq.TLO.Me.Buff(s)
-    elseif t == 1 then 
+    elseif t == 1 then
         return mq.TLO.Me.Song(s)
     end
 end
@@ -262,10 +262,10 @@ local function areFavorites(t)
     for k,v in pairs(favsongs) do
         slength = slength + 1
     end
-    if t == 0 then 
-        return blength 
-    else 
-        return slength 
+    if t == 0 then
+        return blength
+    else
+        return slength
     end
 end
 
@@ -521,7 +521,7 @@ local function favContext(n,s,t)
         if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
     ImGui.EndPopup()
     end
-    ImGui.SetWindowFontScale(1)
+    ImGui.SetWindowFontScale(settings.font/10)
 end
 
 local function favContextGray(n,t)
