@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.3.2'
+local version = '3.3.3'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -597,16 +597,17 @@ local function drawTable(a, b, c)
                                     ImGui.PopStyleColor()
                                 
                             ImGui.EndGroup()
+                            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+                            spellContext(item.name,item.slot,b)
+                            ImGui.PopStyleVar()
+                            if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
+                            local hms
+                            if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
+                            if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
                         elseif item.name == 'zz' then
                             ImGui.TextColored(1,1,1,.5,string.format("%02d", item.slot))
                         end
-                        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                            spellContext(item.name,item.slot,b)
-                        ImGui.PopStyleVar()
-                        if ImGui.IsItemClicked(ImGuiMouseButton.Left) then mq.cmdf('/removebuff %s', item.name) end
-                        local hms
-                        if select(2,barColor(item.slot,b)) =='gray' then hms = 'Permanent' else hms = spell(item.slot,b).Duration.TimeHMS() or 0 end
-                        if (ImGui.IsItemHovered()) and item.name ~= 'zz' then ImGui.SetTooltip(string.format("%02d", item.slot)..' '..hitcount..item.name..'('..hms..')') end
+                        
                     ImGui.PopID()
                 ImGui.PopStyleVar()
             end
