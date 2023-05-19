@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.3.3'
+local version = '3.3.4'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -203,8 +203,8 @@ end
 
 local anim = mq.FindTextureAnimation('A_SpellIcons')
 local function icon(s,t)
-    local icon = spell(s,t).SpellIcon()
-    anim:SetTextureCell(icon)
+    local gemicon = spell(s,t).SpellIcon()
+    anim:SetTextureCell(gemicon)
     return ImGui.DrawTextureAnimation(anim, 17, 17)
 end
 
@@ -542,15 +542,15 @@ local labelOffset
 local function sizes()
     if settings.font == 8 then
         progHeight = 14
-        progSpacing = 2
+        progSpacing = 0
         labelOffset = 18
     elseif settings.font == 9 then
         progHeight = 15
-        progSpacing = 3
+        progSpacing = 2
         labelOffset = 20
     elseif settings.font == 10 then
         progHeight = 16
-        progSpacing = 4
+        progSpacing = 3
         labelOffset = 21
     elseif settings.font == 11 then
         progHeight = 18
