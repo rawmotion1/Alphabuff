@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.3.4'
+local version = '3.3.5'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -902,6 +902,8 @@ local function toggleWindows(cmd)
         openB = not openB
     elseif cmd == 'song' then
         openS = not openS
+    else
+        print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
     end
 end
 
