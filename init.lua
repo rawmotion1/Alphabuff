@@ -500,7 +500,8 @@ local function spellContext(n,s,t)
         ImGui.Separator()
         if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then
             if mq.TLO.MacroQuest.BuildName()=='Emu' then
-                mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup')
+                if mq.TLO.Me.Buff(n).ID() then mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup') end
+                if mq.TLO.Me.Song(n).ID() then mq.cmd('/nomodkey /altkey /notify ShortDurationBuffWindow Buff'..(s-1)..' leftmouseup')end
             else
                 spell(s,t).Inspect()
             end
@@ -523,7 +524,8 @@ local function favContext(n,s,t)
         ImGui.Separator()
         if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then
             if mq.TLO.MacroQuest.BuildName()=='Emu' then
-                mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup')
+                if mq.TLO.Me.Buff(n).ID() then mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup') end
+                if mq.TLO.Me.Song(n).ID() then mq.cmd('/nomodkey /altkey /notify ShortDurationBuffWindow Buff'..(s-1)..' leftmouseup')end
             else
                 spell(s,t).Inspect()
             end
