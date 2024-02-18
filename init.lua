@@ -498,7 +498,13 @@ local function spellContext(n,s,t)
     if ImGui.BeginPopupContextItem('##n') then 
         if ImGui.Selectable('\xee\xa1\xbd'..' Favorite') then addFavorite(s,t) end
         ImGui.Separator()
-        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then spell(s,t).Inspect() end
+        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then
+            if mq.TLO.MacroQuest.BuildName()=='Emu' then
+                mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup')
+            else
+                spell(s,t).Inspect()
+            end
+        end
         if ImGui.Selectable('\xee\xa1\xb2'..' Remove') then mq.cmdf('/removebuff %s', n) end
         ImGui.Separator()
         if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
@@ -515,7 +521,13 @@ local function favContext(n,s,t)
         ImGui.Separator()
         if ImGui.Selectable('\xef\x82\x8a'..' Unfavorite') then unFavorite(s,t) end
         ImGui.Separator()
-        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then spell(s,t).Inspect() end
+        if ImGui.Selectable('\xee\xa2\xb6'..' Inspect') then
+            if mq.TLO.MacroQuest.BuildName()=='Emu' then
+                mq.cmd('/nomodkey /altkey /notify BuffWindow Buff'..(s-1)..' leftmouseup')
+            else
+                spell(s,t).Inspect()
+            end
+        end
         if ImGui.Selectable('\xee\xa1\xb2'..' Remove') then mq.cmdf('/removebuff %s', n) end
         ImGui.Separator()
         if ImGui.Selectable('\xee\x97\x8d'..' Block spell') then mq.cmdf('/blockspell add me %s', spell(s,t).Spell.ID()) end     
