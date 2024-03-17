@@ -183,19 +183,19 @@ local function barColor(s,t)
     local barcolor
     local color
     if spell(s,t).SpellType() == 'Detrimental' then
-        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .7, 0, 0, .7)
+        barcolor = { .7, 0, 0, .7}
         color = 'red'
     elseif duration(s,t) < 0 or duration(s,t) > 36000 then
-        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, 1, 1, 1, .2)
+        barcolor = { 1, 1, 1, .2}
         color = 'gray'
     elseif duration(s,t) > 0 and duration(s,t) < 1200 then
-        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
+        barcolor = { .2, 1, 6, .4}
         color = 'green'
     elseif duration(s,t) == 0 then
-        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, 1, 6, .4)
+        barcolor = {.2, 1, 6, .4}
         color = 'none'
     else
-        barcolor = ImGui.PushStyleColor(ImGuiCol.PlotHistogram, .2, .6, 1, .4)
+        barcolor = { .2, .6, 1, .4}
         color = 'blue'
     end
     return barcolor, color
@@ -603,7 +603,14 @@ local function drawTable(a, b, c)
                                 
                                     icon(item.slot,b)
                                     ImGui.SameLine()
-                                    barColor(item.slot,b)
+                                    local ctmp = {
+                                        [1] = 1,
+                                        [2] = 1,
+                                        [3] = 1,
+                                        [4] = 1
+                                    }
+                                    ctmp = barColor(item.slot,b)
+                                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ImVec4(ctmp[1],ctmp[2],ctmp[3],ctmp[4]))
                                         ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), progHeight, '##'..item.name)
                                         ImGui.SetCursorPosY(ImGui.GetCursorPosY() - labelOffset)
                                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
@@ -655,7 +662,15 @@ local function drawFavorites(b)
                             ImGui.BeginGroup()
                                     icon(item.slot,b)
                                     ImGui.SameLine()
-                                    barColor(item.slot,b)
+                                    ImGui.SameLine()
+                                    local ctmp = {
+                                        [1] = 1,
+                                        [2] = 1,
+                                        [3] = 1,
+                                        [4] = 1
+                                    }
+                                    ctmp = barColor(item.slot,b)
+                                    ImGui.PushStyleColor(ImGuiCol.PlotHistogram, ImVec4(ctmp[1],ctmp[2],ctmp[3],ctmp[4]))
                                         ImGui.ProgressBar(calcRatio(item.slot,b,item.denom), ImGui.GetContentRegionAvail(), progHeight, '##'..item.name)
                                         ImGui.SetCursorPosY(ImGui.GetCursorPosY() - labelOffset)
                                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
