@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.4.0'
+local version = '3.4.1'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
