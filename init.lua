@@ -1,6 +1,6 @@
 --Alphabuff.lua
 --by Rawmotion
-local version = '3.4.1'
+local version = '3.4.2'
 ---@type Mq
 local mq = require('mq')
 ---@type ImGui
@@ -227,7 +227,7 @@ end
 
 local buffs = {}
 local function loadBuffs()
-    for i = 1,42 do
+    for i = 1,47 do
         local buff = {
             slot = i,
             name = name(i,0),
