@@ -8,19 +8,13 @@ local imgui = require('ImGui')
 local icons = require('mq.Icons')
 local utils = require('utils')
 
-
-print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
+--#region Globals & Constants
 
 ---@alias BuffType 0|1
-
----@type BuffType
 local BUFFS = 0
-
----@type BuffType
 local SONGS = 1
 
 ---@alias SortParam 0|1|2
-
 local SORT_BY_SLOT = 0
 local SORT_BY_NAME = 1
 local SORT_BY_TYPE = 2
@@ -31,203 +25,18 @@ local FAV_SHOW_ONLY_ACTIVE = 1
 local FAV_SHOW_ONLY_MISSING = 2
 local FAV_SHOW_BOTH = 3
 
----@generic T : any
----@param orig T
----@return T
-function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else -- number, string, boolean, etc
-        copy = orig
-    end
-    return copy
-end
+---@class WindowConstants
+---@field maxBuffs number
 
---
---#region Settings
---
-
----@class LegacySettings
----@field alphaB integer
----@field alphaS integer
----@field titleB boolean
----@field titleS boolean
----@field lockedB boolean
----@field lockedS boolean
----@field sizeBX integer
----@field sizeBY integer
----@field sizeSX integer
----@field sizeSY integer
----@field posBX integer
----@field posBY integer
----@field posSX integer
----@field posSY integer
----@field favBShow integer
----@field favSShow integer
----@field hideB boolean
----@field hideS boolean
----@field font integer
-
----@class WindowSettings
----@field alpha integer
----@field title boolean
----@field locked boolean
----@field sizeX integer
----@field sizeY integer
----@field posX integer
----@field posY integer
----@field favShow integer
----@field hide boolean
-
----@class Settings
----@field buffWindow WindowSettings
----@field songWindow WindowSettings
----@field font integer
-
-
----@type LegacySettings
-local DEFAULT_SETTINGS = {
-
-    alphaB = 70,
-    titleB = true,
-    lockedB = false,
-    sizeBX = 176,
-    sizeBY = 890,
-    posBX = 236,
-    posBY = 60,
-    favBShow = 3,
-    hideB = false,
-
-    alphaS = 70,
-    titleS = true,
-    lockedS = false,
-    sizeSX = 176,
-    sizeSY = 650,
-    posSX = 60,
-    posSY = 60,
-    favSShow = 3,
-    hideS = false,
-
-    font = 10,
-}
-
----@type Settings
-local DEFAULT_SETTINGS_NEW = {
-    buffWindow = {
-        alpha = 70,
-        title = true,
-        locked = false,
-        sizeX = 176,
-        sizeY = 890,
-        posX = 236,
-        posY = 60,
-        favShow = 3,
-        hide = false,
+---@type { [BuffType]: WindowConstants }
+local WINDOW_CONSTANTS = {
+    [BUFFS] = {
+        maxBuffs = 49,
     },
-    songWindow = {
-        alpha = 70,
-        title = true,
-        locked = false,
-        sizeX = 176,
-        sizeY = 650,
-        posX = 60,
-        posY = 60,
-        favShow = 3,
-        hide = false,
-    },
-    font = 10,
-    favoriteBuffs = {},
-    favoriteSongs = {},
+    [SONGS] = {
+        maxBuffs = 30,
+    }
 }
-
----@return Settings
-local function MakeDefaultsNew()
-    ---@type Settings
-    local settings = deepcopy(DEFAULT_SETTINGS_NEW)
-    return settings
-end
-
-
----@return LegacySettings
-local function MakeDefaults()
-    local settings = {}
-    for k, v in pairs(DEFAULT_SETTINGS) do
-        settings[k] = v
-    end
-    return settings
-end
-
----@type string[]
-local favoriteBuffs = {}
-
----@type string[]
-local favoriteSongs = {}
-
-
-local sortedBBy = 'slot'
-local sortedSBy = 'slot'
-
----@type LegacySettings
-local settings = MakeDefaults()
-
-local function GetSettingsFilename()
-    return string.format("Alphabuff_%s.lua", mq.TLO.Me.Name())
-end
-
-local function SaveSettings()
-    mq.pickle(GetSettingsFilename(), { settings=settings, favbuffs=favoriteBuffs, favsongs=favoriteSongs })
-end
-
-local function ResetDefaults()
-    settings = MakeDefaults()
-    favoriteBuffs = {}
-    favoriteSongs = {}
-    SaveSettings()
-end
-
-local function LoadSettings()
-    local configData, err = loadfile(mq.configDir..'/'..GetSettingsFilename())
-    if err then
-        ResetDefaults()
-        print('\at[Alphabuff]\aw Creating config file...')
-    elseif configData then
-        print('\at[Alphabuff]\aw Loading config file...')
-        ---@type table
-        local conf = configData()
-        if type(conf) ~= 'table' then
-            conf = {}
-        end
-        if not conf.settings then
-            local sets = conf
-            conf = { settings = sets, favbuffs = favoriteBuffs, favsongs = favoriteSongs }
-        end
-        settings = conf.settings
-        favoriteBuffs = conf.favbuffs
-        favoriteSongs = conf.favsongs
-
-        -- Load settings and fill in any blanks
-        -- Check font and reset if its invalid
-        if type(settings.font) ~= 'number' or settings.font < 8 or settings.font > 11 then
-            settings.font = nil
-        end
-        for k, v in pairs(DEFAULT_SETTINGS) do
-            if settings[k] == nil then
-                settings[k] = v
-            end
-        end
-
-        SaveSettings()
-    end
-end
-LoadSettings()
-
---#endregion
 
 local WIDGET_SIZES = {
     [8] = {
@@ -252,12 +61,12 @@ local WIDGET_SIZES = {
     }
 }
 
-local toon = mq.TLO.Me.Name() or ''
-local server = mq.TLO.EverQuest.Server() or ''
+---@class FontItem
+---@field label string
+---@field size number
 
-local A_SpellIcons = mq.FindTextureAnimation('A_SpellIcons')
-
-local font_scale = {
+---@type FontItem[]
+local FONT_SCALE = {
     {
          label = "Tiny",
          size = 8
@@ -275,6 +84,165 @@ local font_scale = {
          size  = 11
     }
 }
+
+---@type { [BarColor]: ImVec4 }
+local COLORS_FROM_NAMES = {
+    red   = ImVec4(0.7, 0.0, 0.0, 0.7),
+    gray  = ImVec4(1.0, 1.0, 1.0, 0.2),
+    green = ImVec4(0.2, 1.0, 6.0, 0.4),
+    none  = ImVec4(0.2, 1.0, 6.0, 0.4),
+    blue  = ImVec4(0.2, 0.6, 1.0, 0.4),
+}
+
+-- Spell Icons texture used for rendering icons to the window
+local A_SpellIcons = mq.FindTextureAnimation('A_SpellIcons')
+local LightGrey = ImVec4(1.0, 1.0, 1.0, 0.7)
+
+---@type BuffWindow
+local buffWindow
+---@type BuffWindow
+local songWindow
+
+---@type Settings
+local settings
+
+--#endregion
+
+--#region Settings
+
+---@class WindowSettings
+---@field alpha integer
+---@field title boolean
+---@field locked boolean
+---@field sizeX integer
+---@field sizeY integer
+---@field posX integer
+---@field posY integer
+---@field favShow integer
+---@field hide boolean
+---@field sortBy SortParam
+---@field favorites string[]
+
+---@class Settings
+---@field buffWindow WindowSettings
+---@field songWindow WindowSettings
+---@field font integer
+---@field showDebugWindow boolean
+
+---@type Settings
+local DEFAULT_SETTINGS = {
+    buffWindow = {
+        alpha = 70,
+        title = true,
+        locked = false,
+        sizeX = 176,
+        sizeY = 890,
+        posX = 236,
+        posY = 60,
+        favShow = 3,
+        hide = false,
+        sortBy = SORT_BY_SLOT,
+        favorites = {},
+    },
+    songWindow = {
+        alpha = 70,
+        title = true,
+        locked = false,
+        sizeX = 176,
+        sizeY = 650,
+        posX = 60,
+        posY = 60,
+        favShow = 3,
+        hide = false,
+        sortBy = SORT_BY_SLOT,
+        favorites = {},
+    },
+    font = 10,
+    showDebugWindow = false,
+}
+
+---@return Settings
+local function MakeDefaults()
+    return utils.deepcopy(DEFAULT_SETTINGS)
+end
+
+local function GetSettingsFilename()
+    return string.format("Alphabuff_%s.lua", mq.TLO.Me.Name())
+end
+
+local function SaveSettings()
+    mq.pickle(GetSettingsFilename(), settings)
+end
+
+---@return Settings
+local function LoadSettings()
+    local configData, err = loadfile(mq.configDir .. '/'.. GetSettingsFilename())
+    local settings
+
+    if err then
+        -- Reset to defaults
+        settings = MakeDefaults()
+        print('\at[Alphabuff]\aw Creating config file...')
+    elseif configData then
+        print('\at[Alphabuff]\aw Loading config file...')
+
+        local conf = configData()
+        if type(conf) ~= 'table' then
+            conf = {}
+        end
+
+        if conf.settings ~= nil then
+            local oldSettings = conf.settings
+
+            -- This is the old format. Convert it into the new format.
+            settings = MakeDefaults()
+            settings.buffWindow.alpha = oldSettings.alphaB
+            settings.buffWindow.title = oldSettings.titleB
+            settings.buffWindow.locked = oldSettings.lockedB
+            settings.buffWindow.sizeX = oldSettings.sizeBX
+            settings.buffWindow.sizeY = oldSettings.sizeBY
+            settings.buffWindow.posX = oldSettings.posBX
+            settings.buffWindow.posY = oldSettings.posBY
+            settings.buffWindow.favShow = oldSettings.favBShow
+            settings.buffWindow.hide = oldSettings.hideB
+            settings.buffWindow.favorites = conf.favbuffs
+            settings.songWindow.alpha = oldSettings.alphaS
+            settings.songWindow.title = oldSettings.titleS
+            settings.songWindow.locked = oldSettings.lockedS
+            settings.songWindow.sizeX = oldSettings.sizeSX
+            settings.songWindow.sizeY = oldSettings.sizeSY
+            settings.songWindow.posX = oldSettings.posSX
+            settings.songWindow.posY = oldSettings.posSY
+            settings.songWindow.favShow = oldSettings.favSShow
+            settings.songWindow.hide = oldSettings.hideS
+            settings.songWindow.favorites = conf.favsongs
+            settings.font = oldSettings.font
+        else
+            settings = conf
+        end
+
+        -- Fill in any blanks
+        if type(settings.font) ~= 'number' or settings.font < 8 or settings.font > 11 then
+            settings.font = DEFAULT_SETTINGS.font
+        end
+        if type(settings.showDebugWindow) ~= 'boolean' then
+            settings.showDebugWindow = DEFAULT_SETTINGS.showDebugWindow
+        end
+        for _, window in ipairs({"buffWindow", "songWindow"}) do
+            local src = DEFAULT_SETTINGS[window] --[[@as WindowSettings]]
+            local dst = settings[window] --[[@as WindowSettings]]
+            for k, v in pairs(src) do
+                if dst[k] == nil or type(dst[k]) ~= type(src[k]) then dst[k] = v end
+            end
+        end
+    end
+
+    return settings
+end
+
+--#endregion
+
+--#region BuffItem
 
 ---@alias BarColor 'red'|'gray'|'green'|'none'|'blue'
 
@@ -310,13 +278,14 @@ function BuffItem.new(slot, type)
     newItem.slot = slot
     newItem.type = type
     newItem.buff = newItem:_GetSpell()
-    newItem:update()
+    newItem.valid = false
+    newItem:Update()
 
     return newItem
 end
 
 ---@return boolean changed
-function BuffItem:update()
+function BuffItem:Update()
     local changed = false
     local name = self.buff.Name()
     if name ~= self.name then
@@ -427,80 +396,9 @@ function BuffItem:DrawIcon()
     end
 end
 
----@type BuffItem[]
-local buffs = {}
----@type BuffItem[]
-local songs = {}
+--#endregion BuffItem
 
----@type { [BarColor]: ImVec4 }
-local COLORS_FROM_NAMES = {
-    red   = ImVec4(0.7, 0.0, 0.0, 0.7),
-    gray  = ImVec4(1.0, 1.0, 1.0, 0.2),
-    green = ImVec4(0.2, 1.0, 6.0, 0.4),
-    none  = ImVec4(0.2, 1.0, 6.0, 0.4),
-    blue  = ImVec4(0.2, 0.6, 1.0, 0.4),
-}
-
-local function LoadBuffs()
-    for i = 1,47 do  -- made up number?
-
-        ---@type BuffItem
-        local buff = BuffItem.new(i, BUFFS)
-
-        table.insert(buffs, buff)
-    end
-
-    for i = 1,30 do
-
-        ---@type BuffItem
-        local song = BuffItem.new(i, SONGS)
-
-        table.insert(songs, song)
-    end
-end
-LoadBuffs()
-
-
----@param type BuffType
----@return number
-local function HasFavorites(type)
-    local buffs = type == BUFFS and favoriteBuffs or favoriteSongs
-    if buffs == nil then return 0 end
-
-    local length = 0
-    for _, _ in pairs(buffs) do
-        length = length + 1
-    end
-    return length
-end
-
-local function ApplyFavorites()
-    if HasFavorites(BUFFS) > 0 then
-        for _, buffItem in pairs(buffs) do
-            for favIndex, favName in pairs(favoriteBuffs) do
-                if buffItem.name == favName then
-                    buffItem.favorite = true
-                end
-                if favName == 'zz' then
-                    favoriteBuffs[favIndex] = nil
-                end
-            end
-        end
-    end
-    if HasFavorites(SONGS) > 0 then
-        for _, buffItem in pairs(songs) do
-            for l,w in pairs(favoriteSongs) do
-                if buffItem.name == w then
-                    buffItem.favorite = true
-                end
-                if w == 'zz' then
-                    favoriteSongs[l] = nil
-                end
-            end
-        end
-    end
-end
-ApplyFavorites()
+--#region BuffWindow
 
 ---@param a BuffItem
 ---@param b BuffItem
@@ -531,235 +429,239 @@ local function SortByName(a, b)
     return delta < 0
 end
 
-local function UpdateBuffTables()
-    local buffsChanged = false
-    for _, item in ipairs(buffs) do
-        if item:update() then
-            buffsChanged = true
-        end
-    end
-    if buffsChanged then
-        if sortedBBy == 'name' then
-            table.sort(buffs, SortByName)
-        elseif sortedBBy == 'slot' then
-            table.sort(buffs, SortBySlot)
-        end
+---@class BuffWindow
+---@field title string
+---@field type BuffType
+---@field buffs BuffItem[]
+---@field favorites string[]
+---@field favoritesMap { [string]: number }
+---@field settings WindowSettings
+---@field consts WindowConstants
+---@field alphaSliderChanged boolean
+---@field onLoad boolean
+---@field open boolean
+---@field show boolean
+---@field windowFlags number
+---@field lastUpdateIndex number
+local BuffWindow     = {}
+BuffWindow.__index   = BuffWindow
+
+---@param title string
+---@param type BuffType
+---@param windowSettings WindowSettings
+function BuffWindow.new(title, type, windowSettings)
+    local newWindow = setmetatable({}, BuffWindow)
+
+    local toon = mq.TLO.Me.Name() or ''
+    local server = mq.TLO.EverQuest.Server() or ''
+    newWindow.title = string.format("%s##%s_%s", title, server, toon)
+    newWindow.type = type
+    newWindow.settings = windowSettings
+    newWindow.favorites = windowSettings.favorites
+    newWindow.consts = WINDOW_CONSTANTS[type]
+    newWindow.alphaSliderChanged = false
+    newWindow.onLoad = true
+    newWindow.open = true
+    newWindow.show = true
+    newWindow.windowFlags = newWindow:CalculateWindowFlags()
+    newWindow.lastUpdateIndex = 1
+
+    -- Create mapping of favorites
+    newWindow.favoritesMap = {}
+    for index, favorite in ipairs(newWindow.favorites) do
+        newWindow.favoritesMap[favorite] = index
     end
 
-    local songsChanged = false
-    for _, item in pairs(songs) do
-        if item:update() then
-            songsChanged = true
+    -- Load all buffs from the game data
+    newWindow:LoadBuffs()
+
+    return newWindow
+end
+
+function BuffWindow:CalculateWindowFlags()
+    -- build flags for the window based on settings
+    local windowFlags = bit32.bor(
+        ImGuiWindowFlags.NoFocusOnAppearing,
+        (not self.settings.title) and ImGuiWindowFlags.NoTitleBar or 0,
+        self.settings.locked and bit32.bor(ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize) or 0
+    )
+    
+    return windowFlags
+end
+
+function BuffWindow:LoadBuffs()
+    self.buffs = {}
+    for i = 1, self.consts.maxBuffs do
+        local newBuff = BuffItem.new(i, self.type)
+        if newBuff.valid then
+            newBuff.favorite = self.favoritesMap[newBuff.name] ~= nil
         end
-    end
-    if songsChanged then
-        if sortedSBy == 'name' then
-            table.sort(songs, SortByName)
-        elseif sortedSBy == 'slot' then
-            table.sort(songs, SortBySlot)
-        end
+        table.insert(self.buffs, newBuff)
     end
 end
 
----@param which BuffType | nil
-local function ReIndexFavorites(which)
-    if which == BUFFS or which == nil then
-        local indexB = 1
-        local tmpB = {}
-        for _,v in pairs(favoriteBuffs) do
-            tmpB[indexB] = v
-            indexB = indexB + 1
+function BuffWindow:UpdateBuffs()
+    local buffsChanged = false
+
+    for _, item in ipairs(self.buffs) do
+        if item:Update() then
+            buffsChanged = true
         end
-        favoriteBuffs = tmpB
     end
-    if which == SONGS or which == nil then
-        local indexS = 1
-        local tmpS = {}
-        for _,v in pairs(favoriteSongs) do
-            tmpS[indexS] = v
-            indexS = indexS + 1
+
+    if buffsChanged then
+        self:SortBuffs()
+    end
+end
+
+function BuffWindow:SortBuffs()
+    if self.settings.sortBy == SORT_BY_NAME then
+        table.sort(self.buffs, SortByName)
+    elseif self.settings.sortBy == SORT_BY_SLOT then
+        table.sort(self.buffs, SortBySlot)
+    end
+end
+
+function BuffWindow:SetSortMethod(sortBy)
+    self.settings.sortBy = sortBy
+    self:SortBuffs()
+end
+
+---@param name string
+function BuffWindow:MoveFavoriteUp(name)
+    local index = self.favoritesMap[name]
+    if index == nil then return end
+    if index <= 1 then return end
+    local newIndex = index - 1
+    self.favoritesMap[self.favorites[newIndex]] = index
+    self.favoritesMap[name] = newIndex
+    table.remove(self.favorites, index)
+    table.insert(self.favorites, newIndex, name)
+
+    SaveSettings()
+end
+
+---@param name string
+function BuffWindow:MoveFavoriteDown(name)
+    local index = self.favoritesMap[name]
+    if index == nil then return end
+    if index >= #self.favorites then return end
+    local newIndex = index + 1
+    self.favoritesMap[self.favorites[newIndex]] = index
+    self.favoritesMap[name] = newIndex
+    table.remove(self.favorites, index)
+    table.insert(self.favorites, newIndex, name)
+
+    SaveSettings()
+end
+
+---@param name string
+function BuffWindow:AddFavorite(name)
+    if self.favoritesMap[name] ~= nil then return end
+    table.insert(self.favorites, name)
+    self.favoritesMap[name] = #self.favorites
+
+    -- Check for buffs that match
+    for _, item in ipairs(self.buffs) do
+        if item.name == name then
+            item.favorite = true
         end
-        favoriteSongs = tmpS
     end
 
     SaveSettings()
 end
 
 ---@param name string
----@param type BuffType
-local function MoveFavoriteUp(name, type)
-    local list
-    if type == BUFFS then list = favoriteBuffs
-    elseif type == SONGS then list = favoriteSongs end
-    local mover
-    local moved
-    local moverIdx
-    local movedIdx
-    for k,v in pairs(list) do
-        if v == name then
-            if k == 0 then return end
-            mover = v
-            moved = list[k-1]
-            moverIdx = k
-            movedIdx = k-1
-        end
+function BuffWindow:RemoveFavorite(name)
+    local index = self.favoritesMap[name]
+    if index == nil then return end
+    table.remove(self.favorites, index)
+    self.favoritesMap[name] = nil
+    for i = index, #self.favorites do
+        self.favoritesMap[self.favorites[i]] = i
     end
-    list[movedIdx] = mover
-    list[moverIdx] = moved
-    ReIndexFavorites()
-end
 
----@param name string
----@param type BuffType
-local function MoveFavoriteDown(name, type)
-    local length = HasFavorites(type)
-    local list
-    if type == BUFFS then list = favoriteBuffs
-    elseif type == SONGS then list = favoriteSongs end
-    local mover
-    local moved
-    local moverIdx
-    local movedIdx
-    for k,v in pairs(list) do
-        if v == name then
-            if k == length then return end
-            mover = v
-            moved = list[k+1]
-            moverIdx = k
-            movedIdx = k+1
-        end
-    end
-    list[movedIdx] = mover
-    list[moverIdx] = moved
-    ReIndexFavorites()
-end
-
----@param favorites string[]
-function BuffItem:AddFavorite(favorites)
-    if not self.valid then return end
-
-    -- Check that favorite doesn't already exist, then add it
-    for _, favName in pairs(favorites) do
-        if favName == self.name then return end
-    end
-    table.insert(favorites, self.name)
-
-    -- Flag buff as favorite
-    self.favorite = true
-
-    ReIndexFavorites(self.type)
-end
-
----@param favorites string[]
-function BuffItem:RemoveFavorite(favorites)
-    if not self.valid then return end
-
-    -- Remove from favorites
-    for index, favName in pairs(favorites) do
-        if favName == self.name then
-            favorites[index] = nil
-        end
-    end
-    -- Unflag buff as favorite
-    for _, item in pairs(buffs) do
-        if item.name == self.name then
+    -- Check for buffs that match
+    for _, item in ipairs(self.buffs) do
+        if item.name == name then
             item.favorite = false
         end
     end
 
-    ReIndexFavorites(self.type)
-end
-
----@param name string
----@param type BuffType
-local function RemoveFavoritePlaceholder(name, type)
-    if type == BUFFS then
-        for index, favName in pairs(favoriteBuffs) do
-            -- Remove any favorites that match the given name
-            if favName == name then
-                favoriteBuffs[index] = nil
-            end
-        end
-    elseif type == SONGS then
-        for index, favName in pairs(favoriteSongs) do
-            -- Remove any favorites that match the given name
-            if favName == name then
-                favoriteSongs[index] = nil
-            end
-        end
-    end
-
-    ReIndexFavorites()
+    SaveSettings()
 end
 
 ---@param item BuffItem
-local function DrawSpellContextMenu(item)
-    ImGui.SetWindowFontScale(1)
-    if ImGui.BeginPopupContextItem('BuffContextMenu') then
+function BuffWindow:DrawSpellContextMenu(item)
+    imgui.SetWindowFontScale(1)
+    if imgui.BeginPopupContextItem('BuffContextMenu') then
         if item.favorite then
             -- Move up and down
-            if ImGui.Selectable(string.format('%s Move up', icons.FA_CHEVRON_UP)) then MoveFavoriteUp(item.name, item.type) end
-            if ImGui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then MoveFavoriteDown(item.name, item.type) end
-            ImGui.Separator()
+            imgui.BeginDisabled(self.favoritesMap[item.name] <= 1)
+            if imgui.Selectable(string.format('%s Move up (%d)', icons.FA_CHEVRON_UP, self.favoritesMap[item.name])) then self:MoveFavoriteUp(item.name) end
+            imgui.EndDisabled()
+            imgui.BeginDisabled(self.favoritesMap[item.name] >= #self.favorites)
+            if imgui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then self:MoveFavoriteDown(item.name) end
+            imgui.EndDisabled()
+            imgui.Separator()
 
             -- Toggle favorite
-            if ImGui.Selectable(string.format('%s Unfavorite', icons.FA_HEART_O)) then
-                item:RemoveFavorite(item.type == BUFFS and favoriteBuffs or favoriteSongs)
+            if imgui.Selectable(string.format('%s Unfavorite', icons.FA_HEART_O)) then
+                self:RemoveFavorite(item.name)
             end
-            ImGui.Separator()
+            imgui.Separator()
         else
             -- Toggle favorite
-            if ImGui.Selectable(string.format('%s Favorite', icons.MD_FAVORITE)) then
-                item:AddFavorite(item.type == BUFFS and favoriteBuffs or favoriteSongs)
+            if imgui.Selectable(string.format('%s Favorite', icons.MD_FAVORITE)) then
+                self:AddFavorite(item.name)
             end
-            ImGui.Separator()
+            imgui.Separator()
         end
 
         -- Inspect spell (open spell display window)
-        if ImGui.Selectable(string.format('%s Inspect', icons.MD_SEARCH)) then
+        if imgui.Selectable(string.format('%s Inspect', icons.MD_SEARCH)) then
             item.buff.Inspect()
         end
 
         -- Remove the buff
-        if ImGui.Selectable(string.format('%s Remove', icons.MD_DELETE)) then
+        if imgui.Selectable(string.format('%s Remove', icons.MD_DELETE)) then
             mq.cmdf('/removebuff %s', item.name)
         end
-        ImGui.Separator()
+        imgui.Separator()
 
         -- Block the buff
-        if ImGui.Selectable(string.format('%s Block spell', icons.MD_CLOSE)) then
+        if imgui.Selectable(string.format('%s Block spell', icons.MD_CLOSE)) then
             mq.cmdf('/blockspell add me %s', item.buff.ID())
         end
 
-        ImGui.EndPopup()
+        imgui.EndPopup()
     end
-    ImGui.SetWindowFontScale(settings.font / 10)
+    imgui.SetWindowFontScale(settings.font / 10)
 end
 
 ---@param name string
----@param type BuffType
-local function DrawPlaceholderContextMenu(name, type)
-    ImGui.SetWindowFontScale(1)
+function BuffWindow:DrawPlaceholderContextMenu(name)
+    imgui.SetWindowFontScale(1)
 
-    if ImGui.BeginPopupContextItem('##nn') then
-        if ImGui.Selectable(string.format('%s Move up', icons.FA_CHEVRON_UP)) then MoveFavoriteUp(name, type) end
-        if ImGui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then MoveFavoriteDown(name, type) end
-        ImGui.Separator()
+    if imgui.BeginPopupContextItem('##nn') then
+        if imgui.Selectable(string.format('%s Move up', icons.FA_CHEVRON_UP)) then self:MoveFavoriteUp(name) end
+        if imgui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then self:MoveFavoriteDown(name) end
+        imgui.Separator()
 
-        if ImGui.Selectable(string.format('%s Unfavorite', icons.FA_HEART_O)) then RemoveFavoritePlaceholder(name, type) end
+        if imgui.Selectable(string.format('%s Unfavorite', icons.FA_HEART_O)) then self:RemoveFavorite(name) end
 
-        ImGui.EndPopup()
+        imgui.EndPopup()
     end
 
-    ImGui.SetWindowFontScale(settings.font / 10)
+    imgui.SetWindowFontScale(settings.font / 10)
 end
 
 ---Draw an individual buff row in the buff window
 ---@param item BuffItem
-local function DrawBuffRow(item)
+function BuffWindow:DrawBuffRow(item)
     local widgetSizes = WIDGET_SIZES[settings.font]
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, widgetSizes.progressBarSpacing)
-    ImGui.PushID(item.slot)
+    imgui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, widgetSizes.progressBarSpacing)
+    imgui.PushID(item.slot)
 
     if item.valid then
         -- Update hitcount value
@@ -769,472 +671,354 @@ local function DrawBuffRow(item)
         end
 
         -- Draw icon, bar and name
-        ImGui.BeginGroup()
+        imgui.BeginGroup()
             item:DrawIcon()
-            ImGui.SameLine()
+            imgui.SameLine()
 
-            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, COLORS_FROM_NAMES[item.barColor])
-                ImGui.ProgressBar(item.ratio, ImGui.GetContentRegionAvail(), widgetSizes.progressBarHeight, "")
-                ImGui.SetCursorPosY(ImGui.GetCursorPosY() - widgetSizes.labelOffset)
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                ImGui.Text("%s%s", hitCountStr, item.name)
-            ImGui.PopStyleColor()
-        ImGui.EndGroup()
+            imgui.PushStyleColor(ImGuiCol.PlotHistogram, COLORS_FROM_NAMES[item.barColor])
+                imgui.ProgressBar(item.ratio, imgui.GetContentRegionAvail(), widgetSizes.progressBarHeight, "")
+                imgui.SetCursorPosY(imgui.GetCursorPosY() - widgetSizes.labelOffset)
+                imgui.SetCursorPosX(imgui.GetCursorPosX() + 20)
+                imgui.Text("%s%s", hitCountStr, item.name)
+            imgui.PopStyleColor()
+        imgui.EndGroup()
 
         -- Handle context menu (right click)
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-            DrawSpellContextMenu(item)
-        ImGui.PopStyleVar()
+        imgui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+            self:DrawSpellContextMenu(item)
+        imgui.PopStyleVar()
 
         -- Remove buff if left clicked
-        if ImGui.IsItemClicked(ImGuiMouseButton.Left) then
+        if imgui.IsItemClicked(ImGuiMouseButton.Left) then
             mq.cmdf('/removebuff %s', item.name)
         end
 
         -- Hover tooltip includes duration
-        if ImGui.IsItemHovered() and item.valid then
+        if imgui.IsItemHovered() and item.valid then
             local hms
             if item.barColor == 'gray' then
                 hms = 'Permanent'
             else
                 hms = item.buff.Duration.TimeHMS() or 0
             end
-            ImGui.SetTooltip("%02d %s%s (%s)", item.slot, hitCountStr, item.name, hms)
+            imgui.SetTooltip("%02d %s%s (%s)", item.slot, hitCountStr, item.name, hms)
         end
     else
-        ImGui.TextColored(ImVec4(1, 1, 1, .5), "%02d", item.slot)
+        imgui.TextColored(ImVec4(1, 1, 1, .5), "%02d", item.slot)
     end
 
-    ImGui.PopID()
-    ImGui.PopStyleVar()
+    imgui.PopID()
+    imgui.PopStyleVar()
+end
+
+---@param name string
+function BuffWindow:DrawPlaceholderRow(name)
+    local widgetSizes = WIDGET_SIZES[settings.font]
+
+    imgui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, widgetSizes.progressBarSpacing)
+    imgui.PushID(name)
+        imgui.BeginGroup()
+            local spellIcon = mq.TLO.Spell(name).SpellIcon()
+            if spellIcon ~= nil then
+                A_SpellIcons:SetTextureCell(spellIcon)
+            end
+            imgui.DrawTextureAnimation(A_SpellIcons, 17, 17)
+            imgui.SameLine()
+            imgui.ProgressBar(0, imgui.GetContentRegionAvail(), widgetSizes.progressBarHeight, "")
+            imgui.SetCursorPosY(imgui.GetCursorPosY() - widgetSizes.labelOffset)
+            imgui.SetCursorPosX(imgui.GetCursorPosX() + 20)
+            imgui.TextColored(1, 1, 1, .3, name)
+            imgui.SetCursorPosY(imgui.GetCursorPosY() - 19)
+            imgui.SetCursorPosX(imgui.GetCursorPosX() + 1)
+            imgui.TextColored(.5, .5, .5, .5, icons.MD_INDETERMINATE_CHECK_BOX)
+        imgui.EndGroup()
+
+        imgui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
+            self:DrawPlaceholderContextMenu(name)
+        imgui.PopStyleVar()
+
+    imgui.PopID()
+    imgui.PopStyleVar()
 end
 
 ---@param sortBy SortParam
----@param buffType BuffType
 ---@param filterColor BarColor | nil
-local function DrawBuffTable(sortBy, buffType, filterColor)
-    -- check if we need to change sort method
-    if sortBy == SORT_BY_SLOT then
-        if buffType == BUFFS and sortedBBy == 'name' then
-            sortedBBy = 'slot'
-            table.sort(buffs, SortBySlot)
-        elseif buffType == SONGS and sortedSBy == 'name' then
-            sortedSBy = 'slot'
-            table.sort(songs, SortBySlot)
-        end
-    elseif sortBy == SORT_BY_NAME then
-        if buffType == BUFFS and sortedBBy == 'slot' then
-            sortedBBy = 'name'
-            table.sort(buffs, SortByName)
-        elseif buffType == SONGS and sortedSBy == 'slot' then
-            sortedSBy = 'name'
-            table.sort(songs, SortByName)
-        end
+function BuffWindow:DrawBuffTable(sortBy, filterColor)
+    if sortBy ~= self.settings.sortBy and sortBy ~= SORT_BY_TYPE then
+        self:SetSortMethod(sortBy)
     end
 
-    local spells
-    if buffType == BUFFS then
-        spells = buffs
-    elseif buffType == SONGS then
-        spells = songs
-    end
-
-    for _, item in pairs(spells) do
-        if         (buffType == BUFFS and (not settings.hideB or item.barColor == 'red'))
-                or (buffType == SONGS and (not settings.hideS or item.barColor == 'red'))
-        then
-            if (       (not item.favorite)
-                    or (buffType == BUFFS and (settings.favBShow == FAV_SHOW_DISABLE or settings.favBShow == FAV_SHOW_ONLY_MISSING))
-                    or (buffType == SONGS and (settings.favSShow == FAV_SHOW_DISABLE or settings.favSShow == FAV_SHOW_ONLY_MISSING))
-                ) and (filterColor == nil or (item.barColor == filterColor))
+    for _, item in ipairs(self.buffs) do
+        if not self.settings.hide or item.barColor == 'red' then
+            if (not item.favorite or self.settings.favShow == FAV_SHOW_DISABLE or self.settings.favShow == FAV_SHOW_ONLY_MISSING)
+                and (filterColor == nil or item.barColor == filterColor)
             then
-                DrawBuffRow(item)
+                self:DrawBuffRow(item)
             end
         end
     end
 end
 
----@param type BuffType
-local function DrawFavorites(type)
-    if HasFavorites(type) > 0 then
-        local spells
-        local favs
+---@param name string
+---@return BuffItem|nil
+function BuffWindow:GetBuffByName(name)
+    for _, item in ipairs(self.buffs) do
+        if item.name == name then
+            return item
+        end
+    end
+    return nil
+end
 
-        if type == BUFFS then
-            spells = buffs
-            favs = favoriteBuffs
+function BuffWindow:DrawFavorites()
+    if #self.favorites == 0 then return end
+
+    for _, favName in ipairs(self.favorites) do
+        local item = self:GetBuffByName(favName)
+        if item ~= nil then
+            if self.settings.favShow ~= FAV_SHOW_ONLY_MISSING then
+                self:DrawBuffRow(item)
+            end
         else
-            spells = songs
-            favs = favoriteSongs
-        end
-
-        local prgHeight = WIDGET_SIZES[settings.font].progressBarHeight
-        local prgSpacing = WIDGET_SIZES[settings.font].progressBarSpacing
-        local lblOffset = WIDGET_SIZES[settings.font].labelOffset
-    
-        for _, favName in pairs(favs) do
-            local slot
-            for l, item in pairs(spells) do
-                if favName == item.name then
-                    slot = l
-                end
-            end
-
-            local item = spells[slot]
-            if item ~= nil then
-                if         (type == BUFFS and settings.favBShow ~= FAV_SHOW_ONLY_MISSING and item.valid)
-                        or (type == SONGS and settings.favSShow ~= FAV_SHOW_ONLY_MISSING and item.valid) then
-                    DrawBuffRow(item)
-                end
-
-            elseif     (type == BUFFS and settings.favBShow ~= FAV_SHOW_ONLY_ACTIVE)
-                    or (type == SONGS and settings.favSShow ~= FAV_SHOW_ONLY_ACTIVE) then
-
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, prgSpacing)
-                ImGui.PushID(favName..'off')
-                    ImGui.BeginGroup()
-                        local spellIcon = mq.TLO.Spell(favName).SpellIcon()
-                        if spellIcon ~= nil then
-                            A_SpellIcons:SetTextureCell(spellIcon)
-                        end
-                        ImGui.DrawTextureAnimation(A_SpellIcons, 17, 17)
-                        ImGui.SameLine()
-                        ImGui.ProgressBar(0, ImGui.GetContentRegionAvail(), prgHeight, "")
-                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - lblOffset)
-                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 20)
-                        ImGui.TextColored(1, 1, 1, .3, favName)
-                        ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 19)
-                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 1)
-                        ImGui.TextColored(.5, .5, .5, .5, icons.MD_INDETERMINATE_CHECK_BOX)
-                    ImGui.EndGroup()
-
-                    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 8, 8)
-                        DrawPlaceholderContextMenu(favName,type)
-                    ImGui.PopStyleVar()
-
-                ImGui.PopID()
-                ImGui.PopStyleVar()
+            if self.settings.favShow ~= FAV_SHOW_ONLY_ACTIVE then
+                self:DrawPlaceholderRow(favName)
             end
         end
-        ImGui.Separator()
     end
+
+    imgui.Separator()
 end
 
-local alphaSliderChanged = false
+function BuffWindow:DrawSettingsMenu()
+    imgui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 5)
+    imgui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 4, 0)
 
----@param type BuffType
-local function DrawSettingsMenu(type)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 8, 5)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 4, 0)
-
-    if ImGui.BeginPopupContextItem('Settings Menu') then
+    if imgui.BeginPopupContextItem('Settings Menu') then
         local changed = false
 
-        ImGui.Text('Settings')
-        ImGui.Separator()
+        imgui.Text('Settings')
+        imgui.Separator()
 
-        if type == BUFFS then
-            -- Lock window toggle
-            settings.lockedB, changed = ImGui.Checkbox('Lock window', settings.lockedB)
-            if changed then SaveSettings() end
+        -- Lock window toggle
+        self.settings.locked, changed = imgui.Checkbox('Lock window', self.settings.locked)
+        if changed then
+            self.windowFlags = self:CalculateWindowFlags()
+            SaveSettings()
+        end
 
-            -- Show titlebar toggle
-            settings.titleB, changed = ImGui.Checkbox('Show title bar', settings.titleB)
-            if changed then SaveSettings() end
+        -- Show titlebar toggle
+        self.settings.title, changed = imgui.Checkbox('Show title bar', self.settings.title)
+        if changed then
+            self.windowFlags = self:CalculateWindowFlags()
+            SaveSettings()
+        end
 
-            -- Alpha slider with deferred save
-            ImGui.SetNextItemWidth(100)
-            settings.alphaB, changed = ImGui.SliderInt('Alpha', settings.alphaB, 0, 100)
-            if changed then
-                alphaSliderChanged = true
-            end
-            if alphaSliderChanged and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
-                SaveSettings()
-                alphaSliderChanged = false
-            end
+        -- Alpha slider with deferred save
+        imgui.SetNextItemWidth(100)
+        self.settings.alpha, changed = imgui.SliderInt('Alpha', self.settings.alpha, 0, 100)
+        if changed then
+            self.alphaSliderChanged = true
+        end
+        if self.alphaSliderChanged and imgui.IsMouseReleased(ImGuiMouseButton.Left) then
+            self.alphaSliderChanged = false
+            SaveSettings()
+        end
 
-            ImGui.Separator()
-            if ImGui.BeginMenu("Font Scale") then
-                for _,v in ipairs(font_scale) do
-                    local checked = settings.font == v.size
-                    if ImGui.MenuItem(v.label, nil, checked) then
-                        settings.font = v.size
-                        SaveSettings()
-                        break
-                    end
+        imgui.Separator()
+        if imgui.BeginMenu("Font Scale") then
+            for _, v in ipairs(FONT_SCALE) do
+                local checked = settings.font == v.size
+                if imgui.MenuItem(v.label, nil, checked) then
+                    settings.font = v.size
+                    SaveSettings()
+                    break
                 end
-                ImGui.EndMenu()
             end
-
-            ImGui.Separator()
-
-            ImGui.Text('Favorites')
-
-            settings.favBShow, changed = ImGui.RadioButton('Disable', settings.favBShow, FAV_SHOW_DISABLE)
-            if changed then SaveSettings() end
-
-            settings.favBShow, changed = ImGui.RadioButton('Only active', settings.favBShow, FAV_SHOW_ONLY_ACTIVE)
-            if changed then SaveSettings() end
-
-            settings.favBShow, changed = ImGui.RadioButton('Only missing', settings.favBShow, FAV_SHOW_ONLY_MISSING)
-            if changed then SaveSettings() end
-
-            settings.favBShow, changed = ImGui.RadioButton('Show both', settings.favBShow, FAV_SHOW_BOTH)
-            if changed then SaveSettings() end
-
-            ImGui.Separator()
-
-            settings.hideB, changed = ImGui.Checkbox('Hide non-favorites', settings.hideB)
-            if changed then SaveSettings() end
-
-        elseif type == SONGS then
-            -- Lock window toggle
-            settings.lockedS, changed = ImGui.Checkbox('Lock window', settings.lockedS)
-            if changed then SaveSettings() end
-
-            -- Show title bar toggle
-            settings.titleS, changed = ImGui.Checkbox('Show title bar', settings.titleS)
-            if changed then SaveSettings() end
-
-            -- Alpha slider with deferred save
-            ImGui.SetNextItemWidth(100)
-            settings.alphaS, changed = ImGui.SliderInt('Alpha', settings.alphaS, 0, 100)
-            if changed then
-                alphaSliderChanged = true
-            end
-            if alphaSliderChanged == true and ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
-                SaveSettings()
-                alphaSliderChanged = false
-            end
-
-            ImGui.Separator()
-            if ImGui.BeginMenu("Font Scale") then
-                for _,v in pairs(font_scale) do
-                    local checked = settings.font == v.size
-                    if ImGui.MenuItem(v.label, nil, checked) then settings.font = v.size SaveSettings() break end
-                end
-                ImGui.EndMenu()
-            end
-
-            ImGui.Separator()
-            ImGui.Text('Favorites')
-
-            settings.favSShow, changed = ImGui.RadioButton('Disable', settings.favSShow, FAV_SHOW_DISABLE)
-            if changed then SaveSettings() end
-
-            settings.favSShow, changed = ImGui.RadioButton('Only active', settings.favSShow, FAV_SHOW_ONLY_ACTIVE)
-            if changed then SaveSettings() end
-
-            settings.favSShow, changed = ImGui.RadioButton('Only missing', settings.favSShow, FAV_SHOW_ONLY_MISSING)
-            if changed then SaveSettings() end
-
-            settings.favSShow, changed = ImGui.RadioButton('Show both', settings.favSShow, FAV_SHOW_BOTH)
-            if changed then SaveSettings() end
-
-            ImGui.Separator()
-            settings.hideS, changed = ImGui.Checkbox('Hide non-favorites', settings.hideS)
-            if changed then SaveSettings() end
-        end
-        ImGui.EndPopup()
-    end
-    ImGui.PopStyleVar(2)
-end
-
----@param type BuffType
-local function DrawTabs(type)
-    ImGui.SetWindowFontScale(settings.font / 10)
-
-    if ImGui.BeginTabBar('sortbar') then
-        if ImGui.BeginTabItem('Slot') then
-            -- Draw favorites
-            if         (type == BUFFS and settings.favBShow ~= FAV_SHOW_DISABLE)
-                    or (type == SONGS and settings.favSShow ~= FAV_SHOW_DISABLE) then
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-                    DrawFavorites(type)
-                ImGui.PopStyleVar()
-            end
-
-            -- Draw everything else
-            DrawBuffTable(SORT_BY_SLOT, type)
-
-            ImGui.EndTabItem()
-        end
-        if ImGui.BeginTabItem('Name') then
-            -- Draw favorites
-            if         (type == BUFFS and settings.favBShow ~= FAV_SHOW_DISABLE)
-                    or (type == SONGS and settings.favSShow ~= FAV_SHOW_DISABLE) then
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-                    DrawFavorites(type)
-                ImGui.PopStyleVar()
-            end
-
-            -- Draw everything else
-            DrawBuffTable(SORT_BY_NAME, type)
-
-            ImGui.EndTabItem()
-        end
-        if ImGui.BeginTabItem('Type') then
-            -- Draw favorites
-            if         (type == BUFFS and settings.favBShow ~= FAV_SHOW_DISABLE)
-                    or (type == SONGS and settings.favSShow ~= FAV_SHOW_DISABLE) then
-                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
-                    DrawFavorites(type)
-                ImGui.PopStyleVar()
-            end
-
-            -- Draw everything else by category
-            DrawBuffTable(SORT_BY_TYPE, type, 'gray')
-            DrawBuffTable(SORT_BY_TYPE, type, 'blue')
-            DrawBuffTable(SORT_BY_TYPE, type, 'green')
-            DrawBuffTable(SORT_BY_TYPE, type, 'red')
-            DrawBuffTable(SORT_BY_TYPE, type, 'none')
-
-            ImGui.EndTabItem()
+            imgui.EndMenu()
         end
 
-        ImGui.EndTabBar()
-    end
+        imgui.Separator()
 
-    ImGui.SetWindowFontScale(1)
+        imgui.Text('Favorites')
+
+        self.settings.favShow, changed = imgui.RadioButton('Disable', self.settings.favShow, FAV_SHOW_DISABLE)
+        if changed then SaveSettings() end
+
+        self.settings.favShow, changed = imgui.RadioButton('Only active', self.settings.favShow, FAV_SHOW_ONLY_ACTIVE)
+        if changed then SaveSettings() end
+
+        self.settings.favShow, changed = imgui.RadioButton('Only missing', self.settings.favShow, FAV_SHOW_ONLY_MISSING)
+        if changed then SaveSettings() end
+
+        self.settings.favShow, changed = imgui.RadioButton('Show both', self.settings.favShow, FAV_SHOW_BOTH)
+        if changed then SaveSettings() end
+
+        imgui.Separator()
+
+        self.settings.hide, changed = imgui.Checkbox('Hide non-favorites', self.settings.hide)
+        if changed then SaveSettings() end
+
+        imgui.EndPopup()
+    end
+    imgui.PopStyleVar(2)
 end
 
-local onloadB = true
-local function DrawBuffWindow()
-    if onloadB == true then
-        ImGui.SetWindowSize(settings.sizeBX, settings.sizeBY)
-        ImGui.SetWindowPos(settings.posBX, settings.posBY)
-        onloadB = false
-    end
-    if settings.sizeBX ~= ImGui.GetWindowWidth() or settings.sizeBY ~= ImGui.GetWindowHeight() then
-        settings.sizeBX, settings.sizeBY = ImGui.GetWindowSize()
-        SaveSettings()
-    end
-    if settings.posBX ~= ImGui.GetWindowPos() or settings.posBY ~= select(2,ImGui.GetWindowPos()) then
-        settings.posBX, settings.posBY = ImGui.GetWindowPos()
-        SaveSettings()
+function BuffWindow:DrawTabs()
+    imgui.SetWindowFontScale(settings.font / 10)
+
+    if imgui.BeginTabBar('sortbar') then
+        local sortMethod = self.settings.sortBy
+
+        if imgui.BeginTabItem('Slot') then
+            sortMethod = SORT_BY_SLOT
+            imgui.EndTabItem()
+        end
+        if imgui.BeginTabItem('Name') then
+            sortMethod = SORT_BY_NAME
+            imgui.EndTabItem()
+        end
+        if imgui.BeginTabItem('Type') then
+            sortMethod = SORT_BY_TYPE
+            imgui.EndTabItem()
+        end
+
+        -- Draw favorites
+        if self.settings.favShow ~= FAV_SHOW_DISABLE then
+            imgui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 7)
+                self:DrawFavorites()
+            imgui.PopStyleVar()
+        end
+
+        -- Draw non-favorites
+        if sortMethod ~= SORT_BY_TYPE then
+            self:DrawBuffTable(sortMethod)
+        else
+            -- Draw everything individually by category
+            self:DrawBuffTable(sortMethod, 'gray')
+            self:DrawBuffTable(sortMethod, 'blue')
+            self:DrawBuffTable(sortMethod, 'green')
+            self:DrawBuffTable(sortMethod, 'red')
+            self:DrawBuffTable(sortMethod, 'none')
+        end
+
+        imgui.EndTabBar()
     end
 
-    ImGui.SetWindowFontScale(1)
-    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
-        ImGui.Button(icons.MD_SETTINGS)
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
-        DrawSettingsMenu(BUFFS)
-        ImGui.PopStyleVar()
-        ImGui.SameLine()
-        DrawTabs(BUFFS)
-    ImGui.PopStyleVar(3)
-
-    ImGui.SetWindowFontScale(.8)
-    ImGui.TextColored(ImVec4(1.0, 1.0, 1.0, 0.7), ' %s', version)
-    ImGui.SetWindowFontScale(1)
+    imgui.SetWindowFontScale(1)
 end
 
-local onloadS = true
-local function DrawSongWindow()
-    if onloadS == true then
-        ImGui.SetWindowSize(settings.sizeSX, settings.sizeSY)
-        ImGui.SetWindowPos(settings.posSX, settings.posSY)
-        onloadS = false
-    end
-    if settings.sizeSX ~= ImGui.GetWindowWidth() or settings.sizeSY ~= ImGui.GetWindowHeight() then
-        settings.sizeSX, settings.sizeSY = ImGui.GetWindowSize()
-        SaveSettings()
-    end
-    if settings.posSX ~= ImGui.GetWindowPos() or settings.posSY ~= select(2,ImGui.GetWindowPos()) then
-        settings.posSX, settings.posSY = ImGui.GetWindowPos()
-        SaveSettings()
-    end
-    ImGui.SetWindowFontScale(1)
-    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
-    ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
-        ImGui.Button(icons.MD_SETTINGS)
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
-        DrawSettingsMenu(SONGS)
-        ImGui.PopStyleVar()
-        ImGui.SameLine()
-        DrawTabs(SONGS)
-    ImGui.PopStyleVar(3)
+function BuffWindow:Draw()
+    imgui.SetNextWindowBgAlpha(self.settings.alpha / 100)
 
-    ImGui.SetWindowFontScale(.8)
-    ImGui.TextColored(ImVec4(1.0, 1.0, 1.0, 0.7), ' %s', version)
-    ImGui.SetWindowFontScale(1)
+    self.open, self.show = imgui.Begin(self.title, self.open, self.windowFlags)
+    if self.show then
+        -- First time set the position from our settings.
+        if self.onLoad then
+            imgui.SetWindowSize(self.settings.sizeX, self.settings.sizeY)
+            imgui.SetWindowPos(self.settings.posX, self.settings.posY)
+            self.onLoad = false
+        end
+
+        local windowWidth, windowHeight = imgui.GetWindowSize()
+        if self.settings.sizeX ~= windowWidth or self.settings.sizeY ~= windowHeight then
+            self.settings.sizeX, self.settings.sizeY = windowWidth, windowHeight
+            SaveSettings()
+        end
+
+        local windowPosX, windowPosY = imgui.GetWindowPos()
+        if self.settings.posX ~= windowPosX or self.settings.posY ~= windowPosY then
+            self.settings.posX, self.settings.posY = windowPosX, windowPosY
+            SaveSettings()
+        end
+
+        imgui.SetWindowFontScale(1)
+        imgui.PushStyleVar(ImGuiStyleVar.FramePadding, 8, 4)
+        imgui.PushStyleVar(ImGuiStyleVar.ItemInnerSpacing, 1, 4)
+        imgui.PushStyleVar(ImGuiStyleVar.ItemSpacing, 1, 3)
+
+        imgui.Button(icons.MD_SETTINGS)
+        imgui.PushStyleVar(ImGuiStyleVar.WindowPadding, 10, 10)
+        self:DrawSettingsMenu()
+        imgui.PopStyleVar()
+        imgui.SameLine()
+        self:DrawTabs()
+
+        imgui.PopStyleVar(3)
+
+        imgui.SetWindowFontScale(.8)
+        imgui.TextColored(LightGrey, ' v%s', version)
+        imgui.SetWindowFontScale(1)
+    end
+
+    imgui.End()
 end
 
-local openB, showBUI = true, true
-local openS, showSUI = true, true
+--#endregion
 
 local function UpdateImGui()
-    ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
-    ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
-    ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
+    imgui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
+    imgui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
+    imgui.PushStyleVar(ImGuiStyleVar.ScrollbarSize, 5)
 
-    if openB then
-        ImGui.SetNextWindowBgAlpha(settings.alphaB / 100)
-
-        -- build flags for the window based on settings
-        local buffWindowFlags = bit32.bor(
-            ImGuiWindowFlags.NoFocusOnAppearing,
-            (not settings.titleB) and ImGuiWindowFlags.NoTitleBar or 0,
-            settings.lockedB and bit32.bor(ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize) or 0
-        )
-        openB, showBUI = ImGui.Begin('Alphabuff##'..server..toon, openB, buffWindowFlags)
-        if showBUI then DrawBuffWindow() end
-        ImGui.End()
+    if buffWindow.open then
+        buffWindow:Draw()
     end
 
-    if openS then
-        ImGui.SetNextWindowBgAlpha(settings.alphaS / 100)
-
-        -- build flags for the window based on settings
-        local songWindowFlags = bit32.bor(
-            ImGuiWindowFlags.NoFocusOnAppearing,
-            (not settings.titleS) and ImGuiWindowFlags.NoTitleBar or 0,
-            settings.lockedS and bit32.bor(ImGuiWindowFlags.NoMove, ImGuiWindowFlags.NoResize) or 0
-        )
-        openS, showSUI = ImGui.Begin('Alphasong##'..server..toon, openS, songWindowFlags)
-        if showSUI then DrawSongWindow() end
-        ImGui.End()
+    if songWindow.open then
+        songWindow:Draw()
     end
 
-    ImGui.PopStyleVar(3)
+    imgui.PopStyleVar(3)
 
-    ImGui.Begin("Test Window")
-    local debugTable = {
-        buffs = buffs,
-        songs = songs,
-        favoriteBuffs = favoriteBuffs,
-        favoriteSongs = favoriteSongs,
-        settings = settings,
-        sortedBBy = sortedBBy,
-        sortedSBy = sortedSBy
-    }
-    utils.drawTableTree(debugTable)
-    ImGui.End()
+    if settings.showDebugWindow then
+        local show
+        imgui.SetNextWindowSize(ImVec2(600, 400), ImGuiCond.FirstUseEver)
+        settings.showDebugWindow, show = imgui.Begin('Alphabuff Debug Window', settings.showDebugWindow)
+        if not settings.showDebugWindow then
+            SaveSettings()
+        elseif show then
+            local debugTable = {
+                settings = settings,
+                buffWindow = buffWindow,
+                songWindow = songWindow,
+            }
+            utils.drawTableTree(debugTable)
+        end
+        imgui.End()
+    end
 end
-
-mq.imgui.init('Alphabuff', UpdateImGui)
 
 ---@param cmd string
 local function ToggleWindowsCommand(cmd)
     if cmd == 'buff' then
-        openB = not openB
+        buffWindow.open = not buffWindow.open
     elseif cmd == 'song' then
-        openS = not openS
+        songWindow.open = not songWindow.open
+    elseif cmd == 'debug' then
+        settings.showDebugWindow = not settings.showDebugWindow
+        SaveSettings()
     else
         print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
     end
 end
 
+--
+-- Main entry point
+--
+
+print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle windows.')
+settings = LoadSettings()
+SaveSettings()
+
+buffWindow = BuffWindow.new("Alphabuff", BUFFS, settings.buffWindow)
+songWindow = BuffWindow.new("Alphasong", SONGS, settings.songWindow)
+
+mq.imgui.init('Alphabuff', UpdateImGui)
 mq.bind('/ab', ToggleWindowsCommand)
 
-local terminate = false
-
-while mq.TLO.MacroQuest.GameState() == 'INGAME' and not terminate do
-    UpdateBuffTables()
-    ApplyFavorites()
-
+while mq.TLO.MacroQuest.GameState() == 'INGAME' do
+    buffWindow:UpdateBuffs()
+    mq.delay(100)
+    songWindow:UpdateBuffs()
     mq.delay(100)
 end
