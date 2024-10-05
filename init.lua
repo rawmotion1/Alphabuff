@@ -442,7 +442,6 @@ end
 ---@field open boolean
 ---@field show boolean
 ---@field windowFlags number
----@field lastUpdateIndex number
 local BuffWindow     = {}
 BuffWindow.__index   = BuffWindow
 
@@ -464,7 +463,6 @@ function BuffWindow.new(title, type, windowSettings)
     newWindow.open = true
     newWindow.show = true
     newWindow.windowFlags = newWindow:CalculateWindowFlags()
-    newWindow.lastUpdateIndex = 1
 
     -- Create mapping of favorites
     newWindow.favoritesMap = {}
