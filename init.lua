@@ -1,5 +1,6 @@
---Alphabuff.lua
---by Rawmotion
+-- Alphabuff.lua
+-- by Rawmotion
+-- brainiac changed some stuff too.
 
 local version = '3.5.0'
 
@@ -24,19 +25,6 @@ local FAV_SHOW_DISABLE = 0
 local FAV_SHOW_ONLY_ACTIVE = 1
 local FAV_SHOW_ONLY_MISSING = 2
 local FAV_SHOW_BOTH = 3
-
----@class WindowConstants
----@field maxBuffs number
-
----@type { [BuffType]: WindowConstants }
-local WINDOW_CONSTANTS = {
-    [BUFFS] = {
-        maxBuffs = 49,
-    },
-    [SONGS] = {
-        maxBuffs = 30,
-    }
-}
 
 local WIDGET_SIZES = {
     [8] = {
@@ -436,19 +424,19 @@ end
 ---@field favorites string[]
 ---@field favoritesMap { [string]: number }
 ---@field settings WindowSettings
----@field consts WindowConstants
 ---@field alphaSliderChanged boolean
 ---@field onLoad boolean
 ---@field open boolean
 ---@field show boolean
 ---@field windowFlags number
+---@field maxBuffs number
 local BuffWindow     = {}
 BuffWindow.__index   = BuffWindow
 
 ---@param title string
 ---@param type BuffType
 ---@param windowSettings WindowSettings
-function BuffWindow.new(title, type, windowSettings)
+function BuffWindow.new(title, type, windowSettings, maxBuffs)
     local newWindow = setmetatable({}, BuffWindow)
 
     local toon = mq.TLO.Me.Name() or ''
@@ -457,12 +445,12 @@ function BuffWindow.new(title, type, windowSettings)
     newWindow.type = type
     newWindow.settings = windowSettings
     newWindow.favorites = windowSettings.favorites
-    newWindow.consts = WINDOW_CONSTANTS[type]
     newWindow.alphaSliderChanged = false
     newWindow.onLoad = true
     newWindow.open = true
     newWindow.show = true
     newWindow.windowFlags = newWindow:CalculateWindowFlags()
+    newWindow.maxBuffs = maxBuffs or 15
 
     -- Create mapping of favorites
     newWindow.favoritesMap = {}
@@ -489,7 +477,7 @@ end
 
 function BuffWindow:LoadBuffs()
     self.buffs = {}
-    for i = 1, self.consts.maxBuffs do
+    for i = 1, self.maxBuffs do
         local newBuff = BuffItem.new(i, self.type)
         if newBuff.valid then
             newBuff.favorite = self.favoritesMap[newBuff.name] ~= nil
@@ -1008,15 +996,15 @@ print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle window
 settings = LoadSettings()
 SaveSettings()
 
-buffWindow = BuffWindow.new("Alphabuff", BUFFS, settings.buffWindow)
-songWindow = BuffWindow.new("Alphasong", SONGS, settings.songWindow)
+buffWindow = BuffWindow.new("Alphabuff", BUFFS, settings.buffWindow, mq.TLO.Me.MaxBuffSlots())
+songWindow = BuffWindow.new("Alphasong", SONGS, settings.songWindow, 30)
 
 mq.imgui.init('Alphabuff', UpdateImGui)
 mq.bind('/ab', ToggleWindowsCommand)
 
 while mq.TLO.MacroQuest.GameState() == 'INGAME' do
     buffWindow:UpdateBuffs()
-    mq.delay(100)
+    mq.delay(200)
     songWindow:UpdateBuffs()
-    mq.delay(100)
+    mq.delay(200)
 end
