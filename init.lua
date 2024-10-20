@@ -1,6 +1,6 @@
 -- Alphabuff.lua
--- by Rawmotion
--- brainiac changed some stuff too.
+-- created by Raw
+-- refactored by brainiac
 
 local version = '3.5.0'
 
