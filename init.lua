@@ -492,6 +492,11 @@ function BuffWindow:UpdateBuffs()
 
     for _, item in ipairs(self.buffs) do
         if item:Update() then
+            if item.name ~= nil then
+                item.favorite = self.favoritesMap[item.name] ~= nil
+            else
+                item.favorite = false
+            end
             buffsChanged = true
         end
     end
@@ -585,7 +590,7 @@ function BuffWindow:DrawSpellContextMenu(item)
         if item.favorite then
             -- Move up and down
             imgui.BeginDisabled(self.favoritesMap[item.name] <= 1)
-            if imgui.Selectable(string.format('%s Move up (%d)', icons.FA_CHEVRON_UP, self.favoritesMap[item.name])) then self:MoveFavoriteUp(item.name) end
+            if imgui.Selectable(string.format('%s Move up', icons.FA_CHEVRON_UP)) then self:MoveFavoriteUp(item.name) end
             imgui.EndDisabled()
             imgui.BeginDisabled(self.favoritesMap[item.name] >= #self.favorites)
             if imgui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then self:MoveFavoriteDown(item.name) end
@@ -630,9 +635,20 @@ end
 function BuffWindow:DrawPlaceholderContextMenu(name)
     imgui.SetWindowFontScale(1)
 
-    if imgui.BeginPopupContextItem('##nn') then
+    if imgui.BeginPopupContextItem('BuffContextMenuPlaceholder') then
+        -- Move up and down
+        imgui.BeginDisabled(self.favoritesMap[name] <= 1)
         if imgui.Selectable(string.format('%s Move up', icons.FA_CHEVRON_UP)) then self:MoveFavoriteUp(name) end
+        imgui.EndDisabled()
+        imgui.BeginDisabled(self.favoritesMap[name] >= #self.favorites)
         if imgui.Selectable(string.format('%s Move down', icons.FA_CHEVRON_DOWN)) then self:MoveFavoriteDown(name) end
+        imgui.EndDisabled()
+        imgui.Separator()
+
+        -- Inspect spell (open spell display window)
+        if imgui.Selectable(string.format('%s Inspect', icons.MD_SEARCH)) then
+            mq.TLO.Spell(name).Inspect()
+        end
         imgui.Separator()
 
         if imgui.Selectable(string.format('%s Unfavorite', icons.FA_HEART_O)) then self:RemoveFavorite(name) end
@@ -760,6 +776,8 @@ end
 function BuffWindow:DrawFavorites()
     if #self.favorites == 0 then return end
 
+    imgui.PushID("Favorites")
+
     for _, favName in ipairs(self.favorites) do
         local item = self:GetBuffByName(favName)
         if item ~= nil then
@@ -772,6 +790,8 @@ function BuffWindow:DrawFavorites()
             end
         end
     end
+
+    imgui.PopID()
 
     imgui.Separator()
 end
