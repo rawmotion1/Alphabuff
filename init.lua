@@ -258,6 +258,7 @@ BuffItem.duration  = 0
 BuffItem.hitCount  = 0
 BuffItem.spellIcon = nil
 BuffItem.ratio     = 0
+BuffItem.barColor = 'none'
 
 ---@param slot number
 ---@param type BuffType
