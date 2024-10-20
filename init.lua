@@ -2,7 +2,7 @@
 -- created by Raw
 -- refactored by brainiac
 
-local version = '3.5.0'
+local version = '3.5.1'
 
 local mq = require('mq')
 local imgui = require('ImGui')
