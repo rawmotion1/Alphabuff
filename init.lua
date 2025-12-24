@@ -2,7 +2,7 @@
 -- created by Raw
 -- refactored by brainiac
 
-local version = '3.5.1'
+local version = '3.5.2'
 
 local mq = require('mq')
 local imgui = require('ImGui')
@@ -517,6 +517,7 @@ end
 function BuffWindow:SetSortMethod(sortBy)
     self.settings.sortBy = sortBy
     self:SortBuffs()
+    SaveSettings()
 end
 
 ---@param name string
