@@ -2,7 +2,7 @@
 -- created by Raw
 -- refactored by brainiac
 
-local version = '3.5.2'
+local version = '3.5.3'
 
 local mq = require('mq')
 local imgui = require('ImGui')
@@ -748,7 +748,7 @@ end
 ---@param sortBy SortParam
 ---@param filterColor BarColor | nil
 function BuffWindow:DrawBuffTable(sortBy, filterColor)
-    if sortBy ~= self.settings.sortBy and sortBy ~= SORT_BY_TYPE then
+    if sortBy ~= self.settings.sortBy then
         self:SetSortMethod(sortBy)
     end
 
@@ -876,17 +876,18 @@ function BuffWindow:DrawTabs()
 
     if imgui.BeginTabBar('sortbar') then
         local sortMethod = self.settings.sortBy
+        local flags = self.onLoad and ImGuiTabItemFlags.SetSelected or 0
 
-        if imgui.BeginTabItem('Slot') then
-            sortMethod = SORT_BY_SLOT
+        if imgui.BeginTabItem('Slot', nil, self.settings.sortBy == SORT_BY_SLOT and flags or 0) then
+            if not self.onLoad then sortMethod = SORT_BY_SLOT end
             imgui.EndTabItem()
         end
-        if imgui.BeginTabItem('Name') then
-            sortMethod = SORT_BY_NAME
+        if imgui.BeginTabItem('Name', nil, self.settings.sortBy == SORT_BY_NAME and flags or 0) then
+            if not self.onLoad then sortMethod = SORT_BY_NAME end
             imgui.EndTabItem()
         end
-        if imgui.BeginTabItem('Type') then
-            sortMethod = SORT_BY_TYPE
+        if imgui.BeginTabItem('Type', nil, self.settings.sortBy == SORT_BY_TYPE and flags or 0) then
+            if not self.onLoad then sortMethod = SORT_BY_TYPE end
             imgui.EndTabItem()
         end
 
@@ -924,7 +925,6 @@ function BuffWindow:Draw()
         if self.onLoad then
             imgui.SetWindowSize(self.settings.sizeX, self.settings.sizeY)
             imgui.SetWindowPos(self.settings.posX, self.settings.posY)
-            self.onLoad = false
         end
 
         local windowWidth, windowHeight = imgui.GetWindowSize()
@@ -952,6 +952,11 @@ function BuffWindow:Draw()
         self:DrawTabs()
 
         imgui.PopStyleVar(3)
+        
+        -- Set onLoad to false AFTER tabs are drawn on first frame
+        if self.onLoad then
+            self.onLoad = false
+        end
 
         imgui.SetWindowFontScale(.8)
         imgui.TextColored(LightGrey, ' v%s', version)
