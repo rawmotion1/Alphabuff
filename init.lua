@@ -155,7 +155,9 @@ local function MakeDefaults()
 end
 
 local function GetSettingsFilename()
-    return string.format("Alphabuff_%s.lua", mq.TLO.Me.Name())
+    local name = mq.TLO.Me.Name() or 'Unknown'
+    local class = mq.TLO.Me.Class.ShortName() or 'UNK'
+    return string.format("Alphabuff_%s_%s.lua", name, class)
 end
 
 local function SaveSettings()
@@ -968,6 +970,17 @@ end
 
 --#endregion
 
+local function ReloadForClassChange()
+    print('\at[Alphabuff]\aw Detected class change, reloading settings...')
+
+    settings = LoadSettings()
+
+    buffWindow = BuffWindow.new("Alphabuff", BUFFS, settings.buffWindow, mq.TLO.Me.MaxBuffSlots())
+    songWindow = BuffWindow.new("Alphasong", SONGS, settings.songWindow, 30)
+
+    SaveSettings()
+end
+
 local function UpdateImGui()
     imgui.PushStyleVar(ImGuiStyleVar.WindowPadding, 0, 1)
     imgui.PushStyleVar(ImGuiStyleVar.WindowRounding, 12)
@@ -1023,6 +1036,8 @@ print('\at[Alphabuff]\aw Use \ay /ab buff\aw and\ay /ab song\aw to toggle window
 settings = LoadSettings()
 SaveSettings()
 
+local currentClass = mq.TLO.Me.Class.ShortName() or 'UNK'
+
 buffWindow = BuffWindow.new("Alphabuff", BUFFS, settings.buffWindow, mq.TLO.Me.MaxBuffSlots())
 songWindow = BuffWindow.new("Alphasong", SONGS, settings.songWindow, 30)
 
@@ -1030,6 +1045,13 @@ mq.imgui.init('Alphabuff', UpdateImGui)
 mq.bind('/ab', ToggleWindowsCommand)
 
 while mq.TLO.MacroQuest.GameState() == 'INGAME' do
+    local newClass = mq.TLO.Me.Class.ShortName()
+
+    if newClass and newClass ~= currentClass then
+        currentClass = newClass
+        ReloadForClassChange()
+    end
+
     buffWindow:UpdateBuffs()
     mq.delay(200)
     songWindow:UpdateBuffs()
