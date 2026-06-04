@@ -1,8 +1,8 @@
 -- Alphabuff.lua
 -- created by Raw
--- refactored by brainiac
+-- additional contributors: brainiac, grimmier, fargrim
 
-local version = '3.5.3'
+local version = '3.5.4'
 
 local mq = require('mq')
 local imgui = require('ImGui')
